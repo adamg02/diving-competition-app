@@ -226,9 +226,10 @@ app.post('/api/competitors/:competitorId/entries', (req, res) => {
     return res.status(400).json({ error: 'Dive number, FINA code, and difficulty are required' });
   }
 
-  // Validate FINA code format (e.g., 107B, 305C, 5337D)
-  const finaCodeRegex = /^[1-6]\d{2,3}[A-D]$/i;
-  if (!finaCodeRegex.test(fina_code)) {
+  // Validate FINA code format (e.g., 107B, 305C, 5152B)
+  const normalizedFinaCode = fina_code.toUpperCase();
+  const finaCodeRegex = /^[1-6]\d{2,3}[A-D]$/;
+  if (!finaCodeRegex.test(normalizedFinaCode)) {
     return res.status(400).json({ error: 'Invalid FINA code format. Example: 107B, 305C' });
   }
 
@@ -238,13 +239,13 @@ app.post('/api/competitors/:competitorId/entries', (req, res) => {
   }
 
   const sql = 'INSERT INTO entries (competitor_id, dive_number, fina_code, difficulty, description) VALUES (?, ?, ?, ?, ?)';
-  db.run(sql, [competitorId, dive_number, fina_code, difficulty, description], function(err) {
+  db.run(sql, [competitorId, dive_number, normalizedFinaCode, difficulty, description], function(err) {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
     res.status(201).json({
       message: 'Entry registered successfully',
-      entry: { id: this.lastID, competitor_id: competitorId, dive_number, fina_code, difficulty, description }
+      entry: { id: this.lastID, competitor_id: competitorId, dive_number, fina_code: normalizedFinaCode, difficulty, description }
     });
   });
 });
@@ -254,10 +255,12 @@ app.put('/api/entries/:id', (req, res) => {
   const { id } = req.params;
   const { dive_number, fina_code, difficulty, description } = req.body;
 
-  // Validate FINA code format if provided
+  // Normalize and validate FINA code format if provided
+  let normalizedFinaCode = fina_code;
   if (fina_code) {
-    const finaCodeRegex = /^[1-6]\d{2,3}[A-D]$/i;
-    if (!finaCodeRegex.test(fina_code)) {
+    normalizedFinaCode = fina_code.toUpperCase();
+    const finaCodeRegex = /^[1-6]\d{2,3}[A-D]$/;
+    if (!finaCodeRegex.test(normalizedFinaCode)) {
       return res.status(400).json({ error: 'Invalid FINA code format. Example: 107B, 305C' });
     }
   }
@@ -269,7 +272,7 @@ app.put('/api/entries/:id', (req, res) => {
 
   const sql = `UPDATE entries SET dive_number = ?, fina_code = ?, difficulty = ?, description = ? WHERE id = ?`;
   
-  db.run(sql, [dive_number, fina_code, difficulty, description, id], function(err) {
+  db.run(sql, [dive_number, normalizedFinaCode, difficulty, description, id], function(err) {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
@@ -278,7 +281,7 @@ app.put('/api/entries/:id', (req, res) => {
     }
     res.json({
       message: 'Entry updated successfully',
-      entry: { id, dive_number, fina_code, difficulty, description }
+      entry: { id, dive_number, fina_code: normalizedFinaCode, difficulty, description }
     });
   });
 });
