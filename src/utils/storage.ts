@@ -99,6 +99,11 @@ export const scoreStorage = new LocalStorage<Score>(STORAGE_KEYS.SCORES);
 
 // Helper function to generate unique IDs
 export const generateId = (): string => {
+  // Use crypto.randomUUID() if available, otherwise fallback
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Fallback for environments without crypto.randomUUID()
   return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 };
 

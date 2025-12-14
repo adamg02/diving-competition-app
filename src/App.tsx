@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import './App.css'
 import { storage, clearAllData } from './utils/storage'
 import { populateSampleData, logAllData } from './utils/sampleData'
 
