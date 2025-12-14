@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dive Sheets - Diving Competition App</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <header>
+        <h1>Diving Competition Management System</h1>
+        <nav>
+            <a href="/">Events</a>
+            <a href="/competitors.html">Competitors</a>
+            <a href="/dive-sheets.html">Dive Sheets</a>
+        </nav>
+    </header>
+
+    <main>
+        <section id="dive-sheets-section">
+            <div class="section-header">
+                <h2>Dive Sheet Management</h2>
+            </div>
+
+            <div class="form-group">
+                <label for="event-select">Select Event *</label>
+                <select id="event-select">
+                    <option value="">-- Select an Event --</option>
+                </select>
+            </div>
+
+            <div class="form-group" id="competitor-select-group" style="display: none;">
+                <label for="competitor-select">Select Competitor *</label>
+                <select id="competitor-select">
+                    <option value="">-- Select a Competitor --</option>
+                </select>
+            </div>
+
+            <div id="dive-sheet-container" style="display: none;">
+                <div class="dive-sheet-status">
+                    <h3>Dive Sheet Status: <span id="sheet-status">Draft</span></h3>
+                    <div id="sheet-actions">
+                        <button id="submit-sheet-btn" class="btn btn-primary">Submit Dive Sheet</button>
+                        <button id="reopen-sheet-btn" class="btn btn-secondary" style="display: none;">Reopen for Editing</button>
+                    </div>
+                </div>
+
+                <div id="entry-form" class="form-container">
+                    <h3 id="form-title">Add Dive Entry</h3>
+                    <form id="entry-form-element">
+                        <input type="hidden" id="entry-id">
+                        <div class="form-group">
+                            <label for="dive-number">Dive Number *</label>
+                            <input type="number" id="dive-number" min="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="fina-code">FINA Dive Code *</label>
+                            <input type="text" id="fina-code" placeholder="e.g., 107B, 305C" required>
+                            <small>Enter the official FINA dive code</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="difficulty">Difficulty Rating *</label>
+                            <input type="number" id="difficulty" step="0.1" min="1.0" max="4.5" required>
+                            <small>Enter difficulty rating between 1.0 and 4.5 (e.g., 2.5, 3.0)</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="description">Description</label>
+                            <input type="text" id="description" placeholder="e.g., Forward 3½ Somersaults Pike">
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Save Entry</button>
+                            <button type="button" id="cancel-entry-btn" class="btn btn-secondary">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="section-header">
+                    <h3>Dive Entries</h3>
+                    <button id="new-entry-btn" class="btn btn-primary">Add Dive Entry</button>
+                </div>
+                
+                <div id="entries-list" class="data-list">
+                    <!-- Entries will be loaded here dynamically -->
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="/js/dive-sheets.js"></script>
+</body>
+</html>

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Competitors - Diving Competition App</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <header>
+        <h1>Diving Competition Management System</h1>
+        <nav>
+            <a href="/">Events</a>
+            <a href="/competitors.html">Competitors</a>
+            <a href="/dive-sheets.html">Dive Sheets</a>
+        </nav>
+    </header>
+
+    <main>
+        <section id="competitors-section">
+            <div class="section-header">
+                <h2>Competitors Management</h2>
+            </div>
+
+            <div class="form-group">
+                <label for="event-select">Select Event *</label>
+                <select id="event-select">
+                    <option value="">-- Select an Event --</option>
+                </select>
+            </div>
+
+            <div id="competitor-form" class="form-container" style="display: none;">
+                <h3 id="form-title">Add Competitor</h3>
+                <form id="competitor-form-element">
+                    <input type="hidden" id="competitor-id">
+                    <div class="form-group">
+                        <label for="first-name">First Name *</label>
+                        <input type="text" id="first-name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="last-name">Last Name *</label>
+                        <input type="text" id="last-name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="club">Club</label>
+                        <input type="text" id="club">
+                    </div>
+                    <div class="form-group">
+                        <label for="age-group">Age Group</label>
+                        <input type="text" id="age-group" placeholder="e.g., Junior, Senior">
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">Save Competitor</button>
+                        <button type="button" id="cancel-competitor-btn" class="btn btn-secondary">Cancel</button>
+                    </div>
+                </form>
+            </div>
+
+            <div id="competitors-container" style="display: none;">
+                <div class="section-header">
+                    <h3>Competitors List</h3>
+                    <button id="new-competitor-btn" class="btn btn-primary">Add Competitor</button>
+                </div>
+                <div id="competitors-list" class="data-list">
+                    <!-- Competitors will be loaded here dynamically -->
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="/js/competitors.js"></script>
+</body>
+</html>
