@@ -1,18 +1,17 @@
 const API_URL = window.location.origin;
 
 let currentCompetitionId = null;
-let currentEventId = null;
 let currentCompetitorId = null;
 let editingEntryId = null;
 let currentSheetStatus = 'draft';
+let competitorsData = [];
 
 // DOM Elements
-const competitionSelect = document.getElementById('competition-select');
-const eventSelectGroup = document.getElementById('event-select-group');
-const eventSelect = document.getElementById('event-select');
-const competitorSelectGroup = document.getElementById('competitor-select-group');
-const competitorSelect = document.getElementById('competitor-select');
+const competitorsListView = document.getElementById('competitors-list-view');
+const competitorsCardsContainer = document.getElementById('competitors-cards-container');
 const diveSheetContainer = document.getElementById('dive-sheet-container');
+const backToListBtn = document.getElementById('back-to-list-btn');
+const competitorNameHeader = document.getElementById('competitor-name');
 const entryForm = document.getElementById('entry-form');
 const entryFormElement = document.getElementById('entry-form-element');
 const newEntryBtn = document.getElementById('new-entry-btn');
@@ -22,11 +21,10 @@ const formTitle = document.getElementById('form-title');
 const sheetStatus = document.getElementById('sheet-status');
 const submitSheetBtn = document.getElementById('submit-sheet-btn');
 const reopenSheetBtn = document.getElementById('reopen-sheet-btn');
+const competitionStatus = document.getElementById('competition-status');
 
 // Event Listeners
-competitionSelect.addEventListener('change', handleCompetitionChange);
-eventSelect.addEventListener('change', handleEventChange);
-competitorSelect.addEventListener('change', handleCompetitorChange);
+backToListBtn.addEventListener('click', showCompetitorsList);
 newEntryBtn.addEventListener('click', showEntryForm);
 cancelEntryBtn.addEventListener('click', hideEntryForm);
 entryFormElement.addEventListener('submit', handleEntrySubmit);
@@ -49,8 +47,21 @@ finaCodeInput.addEventListener('input', () => {
 // Also auto-populate when height changes
 boardHeightSelect.addEventListener('change', autoPopulateDiveInfo);
 
-// Initialize
-loadCompetitions();
+// Listen for global competition changes
+window.addEventListener('competitionChanged', (event) => {
+    const { id, name } = event.detail;
+    handleCompetitionChange(id, name);
+});
+
+// Initialize - check if competition is already selected
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        const comp = getGlobalCompetition();
+        if (comp.id) {
+            handleCompetitionChange(comp.id, comp.name);
+        }
+    }, 100);
+});
 
 // Auto-populate difficulty and description based on FINA code and board height
 function autoPopulateDiveInfo() {
@@ -127,88 +138,55 @@ function autoPopulateDiveInfo() {
     }
 }
 
-async function loadCompetitions() {
-    try {
-        const response = await fetch(`${API_URL}/api/competitions`);
-        const data = await response.json();
-        
-        if (data.competitions && data.competitions.length > 0) {
-            competitionSelect.innerHTML = '<option value="">-- Select a Competition --</option>' +
-                data.competitions.map(competition => 
-                    `<option value="${competition.id}">${competition.name} - ${new Date(competition.date).toLocaleDateString()}</option>`
-                ).join('');
-        } else {
-            competitionSelect.innerHTML = '<option value="">No competitions available</option>';
-        }
-    } catch (error) {
-        console.error('Error loading competitions:', error);
-        showMessage('Error loading competitions', 'error');
-    }
-}
-
-async function handleCompetitionChange() {
-    const competitionId = competitionSelect.value;
-    
+async function handleCompetitionChange(competitionId, competitionName) {
     if (competitionId) {
         currentCompetitionId = competitionId;
-        eventSelectGroup.style.display = 'block';
-        competitorSelectGroup.style.display = 'none';
-        diveSheetContainer.style.display = 'none';
-        await loadEvents(competitionId);
+        competitionStatus.textContent = `Viewing: ${competitionName}`;
+        await loadCompetitorsWithDiveSheets(competitionId);
+        showCompetitorsList();
     } else {
         currentCompetitionId = null;
-        eventSelectGroup.style.display = 'none';
-        competitorSelectGroup.style.display = 'none';
+        competitionStatus.textContent = 'Please select a competition from the dropdown above.';
+        competitorsListView.style.display = 'none';
         diveSheetContainer.style.display = 'none';
     }
 }
 
-async function loadEvents(competitionId) {
+async function loadCompetitorsWithDiveSheets(competitionId) {
     try {
-        const response = await fetch(`${API_URL}/api/competitions/${competitionId}/events`);
-        const data = await response.json();
-        
-        if (data.events && data.events.length > 0) {
-            eventSelect.innerHTML = '<option value="">-- Select an Event --</option>' +
-                data.events.map(event => 
-                    `<option value="${event.id}">${event.name}</option>`
-                ).join('');
-        } else {
-            eventSelect.innerHTML = '<option value="">No events available</option>';
-        }
-    } catch (error) {
-        console.error('Error loading events:', error);
-        showMessage('Error loading events', 'error');
-    }
-}
-
-async function handleEventChange() {
-    const eventId = eventSelect.value;
-    
-    if (eventId) {
-        currentEventId = eventId;
-        competitorSelectGroup.style.display = 'block';
-        diveSheetContainer.style.display = 'none';
-        await loadCompetitors(eventId);
-    } else {
-        currentEventId = null;
-        competitorSelectGroup.style.display = 'none';
-        diveSheetContainer.style.display = 'none';
-    }
-}
-
-async function loadCompetitors(eventId) {
-    try {
-        const response = await fetch(`${API_URL}/api/events/${eventId}/competitors`);
+        const response = await fetch(`${API_URL}/api/competitions/${competitionId}/competitors`);
         const data = await response.json();
         
         if (data.competitors && data.competitors.length > 0) {
-            competitorSelect.innerHTML = '<option value="">-- Select a Competitor --</option>' +
-                data.competitors.map(competitor => 
-                    `<option value="${competitor.id}">${competitor.first_name} ${competitor.last_name}</option>`
-                ).join('');
+            // Load dive sheets and event details for each competitor
+            competitorsData = await Promise.all(data.competitors.map(async (competitor) => {
+                try {
+                    const [sheetResponse, eventResponse] = await Promise.all([
+                        fetch(`${API_URL}/api/competitors/${competitor.id}/dive-sheet`),
+                        fetch(`${API_URL}/api/events/${competitor.event_id}`)
+                    ]);
+                    const sheetData = await sheetResponse.json();
+                    const eventData = await eventResponse.json();
+                    return {
+                        ...competitor,
+                        entries: sheetData.entries || [],
+                        sheetStatus: sheetData.dive_sheet?.status || 'draft',
+                        num_dives: eventData.event?.num_dives || 6
+                    };
+                } catch (error) {
+                    return {
+                        ...competitor,
+                        entries: [],
+                        sheetStatus: 'draft',
+                        num_dives: 6
+                    };
+                }
+            }));
+            
+            displayCompetitorCards();
         } else {
-            competitorSelect.innerHTML = '<option value="">No competitors available</option>';
+            competitorsData = [];
+            competitorsCardsContainer.innerHTML = '<div class="empty-state"><p>No competitors found in this competition.</p></div>';
         }
     } catch (error) {
         console.error('Error loading competitors:', error);
@@ -216,18 +194,51 @@ async function loadCompetitors(eventId) {
     }
 }
 
-async function handleCompetitorChange() {
-    const competitorId = competitorSelect.value;
-    
-    if (competitorId) {
-        currentCompetitorId = competitorId;
-        diveSheetContainer.style.display = 'block';
-        entryForm.style.display = 'none';
-        await loadDiveSheet(competitorId);
-    } else {
-        currentCompetitorId = null;
-        diveSheetContainer.style.display = 'none';
-    }
+function displayCompetitorCards() {
+    competitorsCardsContainer.innerHTML = competitorsData.map(competitor => {
+        const requiredDives = competitor.num_dives || 6;
+        const currentDives = competitor.entries.length;
+        const isComplete = currentDives >= requiredDives;
+        const progressClass = isComplete ? 'progress-complete' : (currentDives > 0 ? 'progress-partial' : 'progress-empty');
+        
+        return `
+            <div class="competitor-card">
+                <div class="competitor-header">
+                    <h3>${competitor.first_name} ${competitor.last_name}</h3>
+                    <span class="event-badge">${competitor.event_name}</span>
+                    <span class="dive-progress ${progressClass}">${currentDives}/${requiredDives}</span>
+                    <span class="status-badge status-${competitor.sheetStatus}">${competitor.sheetStatus}</span>
+                </div>
+                <div class="competitor-dives">
+                    ${competitor.entries.length > 0 ? 
+                        competitor.entries.map(entry => `
+                            <span class="dive-chip">${entry.fina_code} (${entry.board_height})</span>
+                        `).join('') 
+                        : '<span class="no-dives">No dives entered yet</span>'}
+                </div>
+                <div class="competitor-actions">
+                    <button class="btn btn-primary" onclick="editCompetitorSheet(${competitor.id}, '${competitor.first_name} ${competitor.last_name}')">
+                        ${competitor.entries.length > 0 ? 'Edit Dive Sheet' : 'Add Dives'}
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function showCompetitorsList() {
+    competitorsListView.style.display = 'block';
+    diveSheetContainer.style.display = 'none';
+    currentCompetitorId = null;
+}
+
+function editCompetitorSheet(competitorId, competitorName) {
+    currentCompetitorId = competitorId;
+    competitorNameHeader.textContent = competitorName;
+    competitorsListView.style.display = 'none';
+    diveSheetContainer.style.display = 'block';
+    entryForm.style.display = 'none';
+    loadDiveSheet(competitorId);
 }
 
 async function loadDiveSheet(competitorId) {
@@ -240,6 +251,12 @@ async function loadDiveSheet(competitorId) {
             currentSheetStatus = data.dive_sheet.status;
             sheetStatus.textContent = currentSheetStatus.charAt(0).toUpperCase() + currentSheetStatus.slice(1);
             
+            // Check if dive limit reached
+            const competitor = competitorsData.find(c => c.id === competitorId);
+            const requiredDives = competitor ? competitor.num_dives : 6;
+            const currentDives = data.entries ? data.entries.length : 0;
+            const limitReached = currentDives >= requiredDives;
+            
             if (currentSheetStatus === 'submitted') {
                 sheetStatus.className = 'submitted';
                 submitSheetBtn.style.display = 'none';
@@ -250,7 +267,12 @@ async function loadDiveSheet(competitorId) {
                 sheetStatus.className = '';
                 submitSheetBtn.style.display = 'inline-block';
                 reopenSheetBtn.style.display = 'none';
-                newEntryBtn.disabled = false;
+                newEntryBtn.disabled = limitReached;
+                if (limitReached) {
+                    newEntryBtn.title = `Maximum ${requiredDives} dives reached`;
+                } else {
+                    newEntryBtn.title = '';
+                }
             }
         }
         
@@ -269,24 +291,51 @@ async function loadDiveSheet(competitorId) {
 function displayEntries(entries) {
     const isSubmitted = currentSheetStatus === 'submitted';
     
-    entriesList.innerHTML = entries.map(entry => `
-        <div class="entry-card">
-            <div class="entry-number">${entry.dive_number}</div>
-            <div class="entry-details">
-                <h4>FINA Code: ${entry.fina_code}</h4>
-                <p><strong>Height:</strong> ${entry.board_height || 'Not specified'}</p>
-                <p><strong>Difficulty:</strong> ${entry.difficulty}</p>
-                ${entry.description ? `<p><strong>Description:</strong> ${entry.description}</p>` : ''}
-            </div>
-            <div class="entry-actions">
-                <button class="btn btn-primary" onclick="editEntry(${entry.id})" ${isSubmitted ? 'disabled' : ''}>Edit</button>
-                <button class="btn btn-danger" onclick="deleteEntry(${entry.id})" ${isSubmitted ? 'disabled' : ''}>Delete</button>
-            </div>
-        </div>
-    `).join('');
+    if (entries.length === 0) {
+        entriesList.innerHTML = '<div class="empty-state"><p>No dive entries yet. Add your first dive!</p></div>';
+        return;
+    }
+    
+    entriesList.innerHTML = `
+        <table class="entries-table">
+            <thead>
+                <tr>
+                    <th>FINA Code</th>
+                    <th>Height</th>
+                    <th>Difficulty</th>
+                    <th>Description</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${entries.map(entry => `
+                    <tr>
+                        <td class="fina-code-cell">${entry.fina_code}</td>
+                        <td>${entry.board_height || 'N/A'}</td>
+                        <td class="difficulty-cell">${entry.difficulty}</td>
+                        <td class="description-cell">${entry.description || '-'}</td>
+                        <td class="actions-cell">
+                            <button class="btn btn-small btn-primary" onclick="editEntry(${entry.id})" ${isSubmitted ? 'disabled' : ''}>Edit</button>
+                            <button class="btn btn-small btn-danger" onclick="deleteEntry(${entry.id})" ${isSubmitted ? 'disabled' : ''}>Delete</button>
+                        </td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    `;
 }
 
 function showEntryForm() {
+    // Check dive limit before showing form
+    const competitor = competitorsData.find(c => c.id === currentCompetitorId);
+    const requiredDives = competitor ? competitor.num_dives : 6;
+    const currentDives = competitor ? competitor.entries.length : 0;
+    
+    if (currentDives >= requiredDives) {
+        alert(`Maximum number of dives (${requiredDives}) has been reached for this event.`);
+        return;
+    }
+    
     entryForm.style.display = 'block';
     formTitle.textContent = 'Add Dive Entry';
     editingEntryId = null;
@@ -333,8 +382,7 @@ async function handleEntrySubmit(e) {
     e.preventDefault();
     
     const entryData = {
-        dive_number: parseInt(document.getElementById('dive-number').value),
-        fina_code: document.getElementById('fina-code').value.trim().toUpperCase(),
+        fina_code: document.getElementById('fina-code').value.toUpperCase(),
         board_height: document.getElementById('board-height').value,
         difficulty: parseFloat(document.getElementById('difficulty').value),
         description: document.getElementById('description').value
@@ -349,6 +397,16 @@ async function handleEntrySubmit(e) {
                 body: JSON.stringify(entryData)
             });
         } else {
+            // Check dive limit before adding new entry
+            const competitor = competitorsData.find(c => c.id === currentCompetitorId);
+            const requiredDives = competitor ? competitor.num_dives : 6;
+            const currentDives = competitor ? competitor.entries.length : 0;
+            
+            if (currentDives >= requiredDives) {
+                showMessage(`Maximum number of dives (${requiredDives}) has been reached for this event`, 'error');
+                return;
+            }
+            
             response = await fetch(`${API_URL}/api/competitors/${currentCompetitorId}/entries`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -360,6 +418,8 @@ async function handleEntrySubmit(e) {
             showMessage(editingEntryId ? 'Entry updated successfully' : 'Entry added successfully', 'success');
             hideEntryForm();
             loadDiveSheet(currentCompetitorId);
+            // Refresh competitor data to update progress indicator
+            loadCompetitorsWithDiveSheets(currentCompetitionId);
         } else {
             const error = await response.json();
             showMessage(error.error || 'Error saving entry', 'error');
@@ -384,7 +444,6 @@ async function editEntry(id) {
         
         if (entry) {
             document.getElementById('entry-id').value = entry.id;
-            document.getElementById('dive-number').value = entry.dive_number;
             document.getElementById('fina-code').value = entry.fina_code;
             document.getElementById('board-height').value = entry.board_height || '';
             document.getElementById('difficulty').value = entry.difficulty;

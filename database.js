@@ -31,6 +31,7 @@ db.serialize(() => {
               competition_id INTEGER NOT NULL,
               name TEXT NOT NULL,
               description TEXT,
+              num_dives INTEGER DEFAULT 6,
               created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
               FOREIGN KEY (competition_id) REFERENCES competitions(id) ON DELETE CASCADE
             )`, (err) => {
@@ -68,9 +69,27 @@ db.serialize(() => {
       competition_id INTEGER NOT NULL,
       name TEXT NOT NULL,
       description TEXT,
+      num_dives INTEGER DEFAULT 6,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (competition_id) REFERENCES competitions(id) ON DELETE CASCADE
-    )`);
+    )`, (err) => {
+      if (err) {
+        console.error('Error creating events table:', err.message);
+      } else {
+        // Check if num_dives column exists, add it if missing
+        db.all("PRAGMA table_info(events)", (err, columns) => {
+          if (!err && columns) {
+            const hasNumDives = columns.some(col => col.name === 'num_dives');
+            if (!hasNumDives) {
+              db.run(`ALTER TABLE events ADD COLUMN num_dives INTEGER DEFAULT 6`, (err) => {
+                if (err) console.error('Error adding num_dives column:', err.message);
+                else console.log('Added num_dives column to events table');
+              });
+            }
+          }
+        });
+      }
+    });
   }
   
   // Always ensure competitions table exists
@@ -85,6 +104,38 @@ db.serialize(() => {
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
 
+  // Users table for authentication
+  db.run(`CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    provider TEXT NOT NULL,
+    provider_id TEXT NOT NULL,
+    email TEXT,
+    display_name TEXT,
+    first_name TEXT,
+    last_name TEXT,
+    profile_photo TEXT,
+    role TEXT DEFAULT 'viewer',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    last_login DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(provider, provider_id)
+  )`);
+
+  // Migration: Add num_dives column to events table if it doesn't exist
+  db.all("PRAGMA table_info(events)", (err, columns) => {
+    if (!err && columns) {
+      const hasNumDives = columns.some(col => col.name === 'num_dives');
+      if (!hasNumDives) {
+        db.run(`ALTER TABLE events ADD COLUMN num_dives INTEGER DEFAULT 6`, (err) => {
+          if (err) {
+            console.error('Error adding num_dives column:', err.message);
+          } else {
+            console.log('Added num_dives column to events table');
+          }
+        });
+      }
+    }
+  });
+  
   // Competitors table
   db.run(`CREATE TABLE IF NOT EXISTS competitors (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

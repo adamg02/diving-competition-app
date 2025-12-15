@@ -1,6 +1,7 @@
 const API_URL = window.location.origin;
 
 let editingCompetitionId = null;
+let currentUserRole = 'viewer'; // Default to viewer
 
 // DOM Elements
 const newCompetitionBtn = document.getElementById('new-competition-btn');
@@ -14,6 +15,17 @@ const formTitle = document.getElementById('form-title');
 newCompetitionBtn.addEventListener('click', showCompetitionForm);
 cancelCompetitionBtn.addEventListener('click', hideCompetitionForm);
 competitionFormElement.addEventListener('submit', handleCompetitionSubmit);
+
+// Listen for user role and hide button for viewers
+window.addEventListener('userLoaded', (event) => {
+    const user = event.detail;
+    currentUserRole = user.role;
+    if (user.role === 'viewer') {
+        newCompetitionBtn.style.display = 'none';
+    }
+    // Reload competitions to update action buttons
+    loadCompetitions();
+});
 
 // Initialize
 loadCompetitions();
@@ -48,20 +60,26 @@ async function loadCompetitions() {
 }
 
 function displayCompetitions(competitions) {
-    competitionsList.innerHTML = competitions.map(competition => `
-        <div class="data-card">
-            <h3>${competition.name}</h3>
-            <p><strong>Date:</strong> ${new Date(competition.date).toLocaleDateString()}</p>
-            <p><strong>Location:</strong> ${competition.location}</p>
-            ${competition.description ? `<p><strong>Description:</strong> ${competition.description}</p>` : ''}
-            <p><strong>Judges:</strong> ${competition.num_judges || 5}</p>
-            <div class="card-actions">
-                <button class="btn btn-secondary" onclick="manageEvents(${competition.id}, '${competition.name.replace(/'/g, "\\'")}')">Manage Events</button>
-                <button class="btn btn-primary" onclick="editCompetition(${competition.id})">Edit</button>
-                <button class="btn btn-danger" onclick="deleteCompetition(${competition.id})">Delete</button>
+    competitionsList.innerHTML = competitions.map(competition => {
+        // Show action buttons based on role
+        const showManageEvents = currentUserRole !== 'viewer';
+        const showEditDelete = currentUserRole === 'admin' || currentUserRole === 'manager';
+        
+        return `
+            <div class="data-card">
+                <h3>${competition.name}</h3>
+                <p><strong>Date:</strong> ${new Date(competition.date).toLocaleDateString()}</p>
+                <p><strong>Location:</strong> ${competition.location}</p>
+                ${competition.description ? `<p><strong>Description:</strong> ${competition.description}</p>` : ''}
+                <p><strong>Judges:</strong> ${competition.num_judges || 5}</p>
+                <div class="card-actions">
+                    ${showManageEvents ? `<button class="btn btn-secondary" onclick="manageEvents(${competition.id}, '${competition.name.replace(/'/g, "\\'")}')">Manage Events</button>` : ''}
+                    ${showEditDelete ? `<button class="btn btn-primary" onclick="editCompetition(${competition.id})">Edit</button>` : ''}
+                    ${showEditDelete ? `<button class="btn btn-danger" onclick="deleteCompetition(${competition.id})">Delete</button>` : ''}
+                </div>
             </div>
-        </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 async function handleCompetitionSubmit(e) {

@@ -5,7 +5,6 @@ let currentEventId = null;
 let editingCompetitorId = null;
 
 // DOM Elements
-const competitionSelect = document.getElementById('competition-select');
 const eventSelectGroup = document.getElementById('event-select-group');
 const eventSelect = document.getElementById('event-select');
 const competitorForm = document.getElementById('competitor-form');
@@ -15,47 +14,42 @@ const cancelCompetitorBtn = document.getElementById('cancel-competitor-btn');
 const competitorsContainer = document.getElementById('competitors-container');
 const competitorsList = document.getElementById('competitors-list');
 const formTitle = document.getElementById('form-title');
+const competitionStatus = document.getElementById('competition-status');
 
 // Event Listeners
-competitionSelect.addEventListener('change', handleCompetitionChange);
 eventSelect.addEventListener('change', handleEventChange);
 newCompetitorBtn.addEventListener('click', showCompetitorForm);
 cancelCompetitorBtn.addEventListener('click', hideCompetitorForm);
 competitorFormElement.addEventListener('submit', handleCompetitorSubmit);
 
-// Initialize
-loadCompetitions();
+// Listen for global competition changes
+window.addEventListener('competitionChanged', (event) => {
+    const { id, name } = event.detail;
+    handleCompetitionChange(id, name);
+});
 
-async function loadCompetitions() {
-    try {
-        const response = await fetch(`${API_URL}/api/competitions`);
-        const data = await response.json();
-        
-        if (data.competitions && data.competitions.length > 0) {
-            competitionSelect.innerHTML = '<option value="">-- Select a Competition --</option>' +
-                data.competitions.map(competition => 
-                    `<option value="${competition.id}">${competition.name} - ${new Date(competition.date).toLocaleDateString()}</option>`
-                ).join('');
-        } else {
-            competitionSelect.innerHTML = '<option value="">No competitions available</option>';
+// Initialize - check if competition is already selected
+document.addEventListener('DOMContentLoaded', () => {
+    // Give competition-selector.js time to initialize
+    setTimeout(() => {
+        const comp = getGlobalCompetition();
+        if (comp.id) {
+            handleCompetitionChange(comp.id, comp.name);
         }
-    } catch (error) {
-        console.error('Error loading competitions:', error);
-        showMessage('Error loading competitions', 'error');
-    }
-}
+    }, 100);
+});
 
-async function handleCompetitionChange() {
-    const competitionId = competitionSelect.value;
-    
+async function handleCompetitionChange(competitionId, competitionName) {
     if (competitionId) {
         currentCompetitionId = competitionId;
+        competitionStatus.textContent = `Viewing: ${competitionName}`;
         eventSelectGroup.style.display = 'block';
         competitorsContainer.style.display = 'none';
         competitorForm.style.display = 'none';
         await loadEvents(competitionId);
     } else {
         currentCompetitionId = null;
+        competitionStatus.textContent = 'Please select a competition from the dropdown above.';
         eventSelectGroup.style.display = 'none';
         competitorsContainer.style.display = 'none';
         competitorForm.style.display = 'none';

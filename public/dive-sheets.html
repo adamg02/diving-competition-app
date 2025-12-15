@@ -8,44 +8,52 @@
 </head>
 <body>
     <header>
-        <h1>Diving Competition Management System</h1>
-        <nav>
-            <a href="/">Competitions</a>
-            <a href="/competitors.html">Competitors</a>
-            <a href="/dive-sheets.html">Dive Sheets</a>
-            <a href="/judges.html">Judge Scoring</a>
-            <a href="/results.html">Live Results</a>
-        </nav>
+        <div class="header-top">
+            <h1>Diving Competition Management System</h1>
+            <button class="hamburger-menu" id="hamburger-menu" aria-label="Toggle menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </div>
+        <div class="header-controls" id="header-controls">
+            <div class="competition-selector">
+                <label for="global-competition-select">Competition:</label>
+                <select id="global-competition-select">
+                    <option value="">Select a competition...</option>
+                </select>
+            </div>
+            <nav>
+                <a href="/">Competitions</a>
+                <a href="/competitors.html">Competitors</a>
+                <a href="/dive-sheets.html">Dive Sheets</a>
+                <a href="/judges.html">Judge Scoring</a>
+                <a href="/results.html">Live Results</a>
+            </nav>
+        </div>
     </header>
 
     <main>
         <section id="dive-sheets-section">
             <div class="section-header">
                 <h2>Dive Sheet Management</h2>
+                <p class="help-text" id="competition-status">Please select a competition from the dropdown above.</p>
             </div>
 
-            <div class="form-group">
-                <label for="competition-select">Select Competition *</label>
-                <select id="competition-select">
-                    <option value="">-- Select a Competition --</option>
-                </select>
+            <!-- Competitors List View -->
+            <div id="competitors-list-view" style="display: none;">
+                <div id="competitors-cards-container">
+                    <!-- Competitor cards will be loaded here -->
+                </div>
             </div>
 
-            <div class="form-group" id="event-select-group" style="display: none;">
-                <label for="event-select">Select Event *</label>
-                <select id="event-select">
-                    <option value="">-- Select an Event --</option>
-                </select>
-            </div>
-
-            <div class="form-group" id="competitor-select-group" style="display: none;">
-                <label for="competitor-select">Select Competitor *</label>
-                <select id="competitor-select">
-                    <option value="">-- Select a Competitor --</option>
-                </select>
-            </div>
-
+            <!-- Dive Sheet Editor (shown when editing a specific competitor) -->
             <div id="dive-sheet-container" style="display: none;">
+                <div class="dive-sheet-header">
+                    <button id="back-to-list-btn" class="btn btn-secondary">← Back to Competitors</button>
+                    <h3 id="competitor-name"></h3>
+                </div>
+
                 <div class="dive-sheet-status">
                     <h3>Dive Sheet Status: <span id="sheet-status">Draft</span></h3>
                     <div id="sheet-actions">
@@ -58,10 +66,6 @@
                     <h3 id="form-title">Add Dive Entry</h3>
                     <form id="entry-form-element">
                         <input type="hidden" id="entry-id">
-                        <div class="form-group">
-                            <label for="dive-number">Dive Number *</label>
-                            <input type="number" id="dive-number" min="1" required>
-                        </div>
                         <div class="form-group">
                             <label for="fina-code">FINA Dive Code *</label>
                             <input type="text" id="fina-code" placeholder="e.g., 107B, 305C" required>
@@ -107,7 +111,10 @@
         </section>
     </main>
 
+    <script src="/js/hamburger-menu.js"></script>
     <script src="/js/fina-codes-heights.js"></script>
+    <script src="/js/competition-selector.js"></script>
+    <script src="/js/auth-ui.js"></script>
     <script src="/js/dive-sheets.js"></script>
 </body>
 </html>

@@ -8,14 +8,29 @@
 </head>
 <body>
     <header>
-        <h1>Diving Competition Management System</h1>
-        <nav>
-            <a href="/">Competitions</a>
-            <a href="/competitors.html">Competitors</a>
-            <a href="/dive-sheets.html">Dive Sheets</a>
-            <a href="/judges.html">Judge Scoring</a>
-            <a href="/results.html">Live Results</a>
-        </nav>
+        <div class="header-top">
+            <h1>Diving Competition Management System</h1>
+            <button class="hamburger-menu" id="hamburger-menu" aria-label="Toggle menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </div>
+        <div class="header-controls" id="header-controls">
+            <div class="competition-selector">
+                <label for="global-competition-select">Competition:</label>
+                <select id="global-competition-select">
+                    <option value="">Select a competition...</option>
+                </select>
+            </div>
+            <nav>
+                <a href="/">Competitions</a>
+                <a href="/competitors.html">Competitors</a>
+                <a href="/dive-sheets.html">Dive Sheets</a>
+                <a href="/judges.html">Judge Scoring</a>
+                <a href="/results.html">Live Results</a>
+            </nav>
+        </div>
     </header>
 
     <main>
@@ -65,6 +80,9 @@
         </section>
     </main>
 
+    <script src="/js/hamburger-menu.js"></script>
+    <script src="/js/competition-selector.js"></script>
+    <script src="/js/auth-ui.js"></script>
     <script src="/js/competitions.js"></script>
 </body>
 </html>

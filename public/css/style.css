@@ -18,15 +18,54 @@ header {
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 
+.header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
 header h1 {
     font-size: 1.8rem;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0;
+}
+
+.hamburger-menu {
+    display: none;
+    flex-direction: column;
+    gap: 4px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0.5rem;
+}
+
+.hamburger-menu span {
+    display: block;
+    width: 25px;
+    height: 3px;
+    background-color: white;
+    transition: all 0.3s ease;
+}
+
+.hamburger-menu.active span:nth-child(1) {
+    transform: rotate(45deg) translate(5px, 5px);
+}
+
+.hamburger-menu.active span:nth-child(2) {
+    opacity: 0;
+}
+
+.hamburger-menu.active span:nth-child(3) {
+    transform: rotate(-45deg) translate(7px, -6px);
 }
 
 nav {
     display: flex;
     gap: 1.5rem;
     margin-top: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
 }
 
 nav a {
@@ -44,6 +83,94 @@ nav a:hover {
 nav a.active {
     background-color: rgba(255, 255, 255, 0.3);
     font-weight: bold;
+}
+
+.header-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.competition-selector {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: rgba(255, 255, 255, 0.15);
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+}
+
+.competition-selector label {
+    color: white;
+    font-weight: 500;
+    font-size: 0.95rem;
+    margin: 0;
+}
+
+.competition-selector select {
+    flex: 1;
+    min-width: 250px;
+    padding: 0.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+    background: white;
+    color: #333;
+    font-size: 0.95rem;
+    cursor: pointer;
+}
+
+.competition-selector select:focus {
+    outline: none;
+    border-color: rgba(255, 255, 255, 0.6);
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-left: auto;
+}
+
+.user-display {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+}
+
+.user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 2px solid white;
+}
+
+.user-name {
+    font-weight: 500;
+}
+
+.user-role {
+    font-size: 0.85rem;
+    padding: 0.2rem 0.6rem;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    text-transform: capitalize;
+}
+
+.logout-btn {
+    padding: 0.5rem 1rem;
+    background: rgba(255, 255, 255, 0.2);
+    color: white !important;
+    border-radius: 4px;
+    text-decoration: none;
+    transition: background-color 0.3s;
+}
+
+.logout-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
 }
 
 main {
@@ -455,13 +582,46 @@ main {
 }
 
 @media (max-width: 768px) {
-    header h1 {
-        font-size: 1.4rem;
+    .hamburger-menu {
+        display: flex;
+    }
+
+    .header-controls {
+        display: none;
+        flex-direction: column;
+        gap: 1rem;
+        width: 100%;
+        margin-top: 1rem;
+    }
+
+    .header-controls.active {
+        display: flex;
     }
 
     nav {
         flex-direction: column;
         gap: 0.5rem;
+        width: 100%;
+        margin-top: 0;
+    }
+
+    nav a {
+        width: 100%;
+        text-align: center;
+    }
+
+    .competition-selector {
+        width: 100%;
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .competition-selector select {
+        min-width: 100%;
+    }
+
+    header h1 {
+        font-size: 1.4rem;
     }
 
     .section-header {
@@ -491,4 +651,389 @@ main {
         flex-direction: column;
         gap: 1rem;
     }
+}
+
+/* ==================== USER MANAGEMENT STYLES ==================== */
+
+#users-table {
+    width: 100%;
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+#users-table thead {
+    background-color: #f8f9fa;
+}
+
+#users-table th {
+    text-align: left;
+    padding: 1rem;
+    font-weight: 600;
+    color: #495057;
+    border-bottom: 2px solid #dee2e6;
+}
+
+#users-table td {
+    padding: 1rem;
+    border-bottom: 1px solid #dee2e6;
+}
+
+#users-table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+#users-table tbody tr.current-user {
+    background-color: #e7f3ff;
+}
+
+.user-cell {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.user-avatar-small {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.user-avatar-placeholder {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background-color: #dee2e6;
+}
+
+.provider-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.provider-google {
+    background-color: #e3f2fd;
+    color: #1976d2;
+}
+
+.provider-microsoft {
+    background-color: #fff3e0;
+    color: #f57c00;
+}
+
+.provider-facebook {
+    background-color: #e8eaf6;
+    color: #3f51b5;
+}
+
+.role-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+.role-viewer {
+    background-color: #e9ecef;
+    color: #495057;
+}
+
+.role-judge {
+    background-color: #d1ecf1;
+    color: #0c5460;
+}
+
+.role-manager {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.role-admin {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.role-info {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-top: 2rem;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+.role-info h3 {
+    margin-bottom: 1rem;
+    color: #2a5298;
+}
+
+.role-info ul {
+    list-style: none;
+}
+
+.role-info li {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.role-info li:last-child {
+    border-bottom: none;
+}
+
+.help-text {
+    color: #6c757d;
+    font-size: 0.95rem;
+    margin-top: 0.5rem;
+}
+
+/* ==================== COMPETITOR CARDS (DIVE SHEETS) ==================== */
+
+#competitors-cards-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+}
+
+.competitor-card {
+    background: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    transition: box-shadow 0.3s;
+}
+
+.competitor-card:hover {
+    box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+}
+
+.competitor-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+.competitor-header h3 {
+    margin: 0;
+    color: #2a5298;
+    font-size: 1.2rem;
+    flex: 1;
+}
+
+.event-badge {
+    background-color: #e3f2fd;
+    color: #1976d2;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.dive-progress {
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    font-family: 'Courier New', monospace;
+}
+
+.progress-empty {
+    background-color: #fafafa;
+    color: #999;
+    border: 1px solid #e0e0e0;
+}
+
+.progress-partial {
+    background-color: #fff3e0;
+    color: #f57c00;
+    border: 1px solid #ffb74d;
+}
+
+.progress-complete {
+    background-color: #e8f5e9;
+    color: #2e7d32;
+    border: 1px solid #66bb6a;
+}
+
+.status-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+.status-draft {
+    background-color: #fff3e0;
+    color: #f57c00;
+}
+
+.status-submitted {
+    background-color: #e8f5e9;
+    color: #2e7d32;
+}
+
+.competitor-dives {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    min-height: 40px;
+}
+
+.dive-chip {
+    background-color: #f5f5f5;
+    color: #333;
+    padding: 0.3rem 0.7rem;
+    border-radius: 16px;
+    font-size: 0.9rem;
+    font-family: 'Courier New', monospace;
+    border: 1px solid #ddd;
+}
+
+.no-dives {
+    color: #999;
+    font-style: italic;
+    font-size: 0.9rem;
+}
+
+.competitor-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.dive-sheet-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #e0e0e0;
+}
+
+.dive-sheet-header h3 {
+    margin: 0;
+    color: #2a5298;
+    flex: 1;
+}
+
+/* Modal Styles */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background-color: white;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    min-width: 400px;
+    max-width: 90%;
+}
+
+.modal-content h3 {
+    margin-bottom: 1rem;
+    color: #2a5298;
+}
+
+#role-modal-user {
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+    color: #495057;
+}
+
+.btn-small {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.85rem;
+}
+
+/* ==================== ENTRIES TABLE (DIVE SHEETS) ==================== */
+
+.entries-table {
+    width: 100%;
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    border-collapse: collapse;
+}
+
+.entries-table thead {
+    background-color: #2a5298;
+    color: white;
+}
+
+.entries-table th {
+    text-align: left;
+    padding: 0.75rem 1rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.entries-table td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.entries-table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+.entries-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.entry-number-cell {
+    font-weight: 600;
+    color: #2a5298;
+    text-align: center;
+    width: 50px;
+}
+
+.fina-code-cell {
+    font-family: 'Courier New', monospace;
+    font-weight: 600;
+    color: #333;
+    width: 100px;
+}
+
+.difficulty-cell {
+    font-weight: 600;
+    color: #f57c00;
+    width: 80px;
+}
+
+.description-cell {
+    color: #666;
+    max-width: 300px;
+}
+
+.actions-cell {
+    white-space: nowrap;
+    width: 150px;
+}
+
+.actions-cell .btn {
+    margin-right: 0.25rem;
+}
+
+.actions-cell .btn:last-child {
+    margin-right: 0;
 }

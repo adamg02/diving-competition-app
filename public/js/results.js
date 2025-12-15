@@ -11,56 +11,57 @@ let lastScoreCount = 0;
 let autoAdvanceTimeout = null;
 
 // DOM Elements
-const competitionSelect = document.getElementById('competition-select');
 const eventSelectGroup = document.getElementById('event-select-group');
 const eventSelect = document.getElementById('event-select');
 const startButtonGroup = document.getElementById('start-button-group');
 const startDashboardBtn = document.getElementById('start-dashboard-btn');
 const setupSection = document.getElementById('setup-section');
 const dashboardContainer = document.getElementById('dashboard-container');
+const competitionStatus = document.getElementById('competition-status');
 
 // Event Listeners
-competitionSelect.addEventListener('change', handleCompetitionChange);
 eventSelect.addEventListener('change', handleEventChange);
 startDashboardBtn.addEventListener('click', startDashboard);
 
-// Initialize
-loadCompetitions();
+// Listen for global competition changes
+window.addEventListener('competitionChanged', (event) => {
+    const { id, name } = event.detail;
+    handleCompetitionChange(id, name);
+});
 
-async function loadCompetitions() {
-    try {
-        const response = await fetch(`${API_URL}/api/competitions`);
-        const data = await response.json();
-        
-        if (data.competitions && data.competitions.length > 0) {
-            competitionSelect.innerHTML = '<option value="">-- Select a Competition --</option>' +
-                data.competitions.map(competition => 
-                    `<option value="${competition.id}" data-name="${competition.name}" data-num-judges="${competition.num_judges || 5}">
-                        ${competition.name} - ${new Date(competition.date).toLocaleDateString()}
-                    </option>`
-                ).join('');
-        } else {
-            competitionSelect.innerHTML = '<option value="">No competitions available</option>';
+// Initialize - check if competition is already selected
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        const comp = getGlobalCompetition();
+        if (comp.id) {
+            handleCompetitionChange(comp.id, comp.name);
         }
-    } catch (error) {
-        console.error('Error loading competitions:', error);
-    }
-}
+    }, 100);
+});
 
-async function handleCompetitionChange() {
-    const competitionId = competitionSelect.value;
-    
+async function handleCompetitionChange(competitionId, competitionName) {
     if (competitionId) {
         currentCompetitionId = competitionId;
-        const selectedOption = competitionSelect.options[competitionSelect.selectedIndex];
-        currentCompetitionName = selectedOption.getAttribute('data-name');
-        numJudges = parseInt(selectedOption.getAttribute('data-num-judges')) || 5;
+        currentCompetitionName = competitionName;
+        competitionStatus.textContent = `Viewing: ${competitionName}`;
+        
+        // Fetch competition details to get num_judges
+        try {
+            const response = await fetch(`${API_URL}/api/competitions`);
+            const data = await response.json();
+            const competition = data.competitions.find(c => c.id == competitionId);
+            numJudges = competition ? (parseInt(competition.num_judges) || 5) : 5;
+        } catch (error) {
+            console.error('Error loading competition details:', error);
+            numJudges = 5;
+        }
         
         eventSelectGroup.style.display = 'block';
         startButtonGroup.style.display = 'none';
         await loadEvents(competitionId);
     } else {
         currentCompetitionId = null;
+        competitionStatus.textContent = 'Please select a competition from the dropdown above.';
         eventSelectGroup.style.display = 'none';
         startButtonGroup.style.display = 'none';
     }

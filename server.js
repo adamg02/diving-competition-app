@@ -1,8 +1,14 @@
+require('dotenv').config();
+
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const path = require('path');
 const rateLimit = require('express-rate-limit');
+const session = require('express-session');
+const SQLiteStore = require('connect-sqlite3')(session);
+const passport = require('./auth');
+const config = require('./config');
 const db = require('./database');
 
 const app = express();
@@ -15,6 +21,16 @@ const apiLimiter = rateLimit({
   message: 'Too many requests from this IP, please try again later.'
 });
 
+// Session configuration
+app.use(session({
+  ...config.session,
+  store: new SQLiteStore({ db: 'sessions.db', dir: './' })
+}));
+
+// Passport initialization
+app.use(passport.initialize());
+app.use(passport.session());
+
 // Middleware
 app.use(cors());
 app.use(bodyParser.json());
@@ -23,6 +39,83 @@ app.use(express.static('public'));
 
 // Apply rate limiting to all API routes
 app.use('/api/', apiLimiter);
+
+// ==================== AUTHENTICATION ROUTES ====================
+
+// Google OAuth routes
+app.get('/auth/google',
+  passport.authenticate('google', { scope: ['profile', 'email'] })
+);
+
+app.get('/auth/google/callback',
+  passport.authenticate('google', { failureRedirect: '/login.html' }),
+  (req, res) => {
+    res.redirect('/');
+  }
+);
+
+// Facebook OAuth routes
+app.get('/auth/facebook',
+  passport.authenticate('facebook', { scope: ['email'] })
+);
+
+app.get('/auth/facebook/callback',
+  passport.authenticate('facebook', { failureRedirect: '/login.html' }),
+  (req, res) => {
+    res.redirect('/');
+  }
+);
+
+// Microsoft OAuth routes
+app.get('/auth/microsoft',
+  passport.authenticate('microsoft', { prompt: 'select_account' })
+);
+
+app.get('/auth/microsoft/callback',
+  passport.authenticate('microsoft', { failureRedirect: '/login.html' }),
+  (req, res) => {
+    res.redirect('/');
+  }
+);
+
+// Logout route
+app.get('/auth/logout', (req, res) => {
+  req.logout((err) => {
+    if (err) {
+      return res.status(500).json({ error: 'Error logging out' });
+    }
+    res.redirect('/login.html');
+  });
+});
+
+// Get current user
+app.get('/api/auth/user', (req, res) => {
+  if (req.isAuthenticated()) {
+    res.json({ user: req.user });
+  } else {
+    res.status(401).json({ error: 'Not authenticated' });
+  }
+});
+
+// Middleware to check authentication
+function ensureAuthenticated(req, res, next) {
+  if (req.isAuthenticated()) {
+    return next();
+  }
+  res.status(401).json({ error: 'Authentication required' });
+}
+
+// Middleware to check if user is admin
+function ensureAdmin(req, res, next) {
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+  return next();
+}
+
 
 // ==================== COMPETITION MANAGEMENT ENDPOINTS ====================
 
@@ -50,8 +143,8 @@ app.get('/api/competitions/:id', (req, res) => {
   });
 });
 
-// Create new competition
-app.post('/api/competitions', (req, res) => {
+// Create new competition (admin only)
+app.post('/api/competitions', ensureAdmin, (req, res) => {
   const { name, date, location, description, num_judges } = req.body;
   
   if (!name || !date || !location) {
@@ -82,8 +175,8 @@ app.post('/api/competitions', (req, res) => {
   });
 });
 
-// Update competition
-app.put('/api/competitions/:id', (req, res) => {
+// Update competition (admin only)
+app.put('/api/competitions/:id', ensureAdmin, (req, res) => {
   const { id } = req.params;
   const { name, date, location, description, num_judges } = req.body;
 
@@ -116,8 +209,8 @@ app.put('/api/competitions/:id', (req, res) => {
   });
 });
 
-// Delete competition
-app.delete('/api/competitions/:id', (req, res) => {
+// Delete competition (admin only)
+app.delete('/api/competitions/:id', ensureAdmin, (req, res) => {
   const { id } = req.params;
   db.run('DELETE FROM competitions WHERE id = ?', [id], function(err) {
     if (err) {
@@ -160,20 +253,21 @@ app.get('/api/events/:id', (req, res) => {
 // Create new event within a competition
 app.post('/api/competitions/:competitionId/events', (req, res) => {
   const { competitionId } = req.params;
-  const { name, description } = req.body;
+  const { name, description, num_dives } = req.body;
   
   if (!name) {
     return res.status(400).json({ error: 'Event name is required' });
   }
 
-  const sql = 'INSERT INTO events (competition_id, name, description) VALUES (?, ?, ?)';
-  db.run(sql, [competitionId, name, description], function(err) {
+  const diveCount = num_dives || 6;
+  const sql = 'INSERT INTO events (competition_id, name, description, num_dives) VALUES (?, ?, ?, ?)';
+  db.run(sql, [competitionId, name, description, diveCount], function(err) {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
     res.status(201).json({ 
       message: 'Event created successfully',
-      event: { id: this.lastID, competition_id: competitionId, name, description }
+      event: { id: this.lastID, competition_id: competitionId, name, description, num_dives: diveCount }
     });
   });
 });
@@ -181,11 +275,11 @@ app.post('/api/competitions/:competitionId/events', (req, res) => {
 // Update event
 app.put('/api/events/:id', (req, res) => {
   const { id } = req.params;
-  const { name, description } = req.body;
+  const { name, description, num_dives } = req.body;
 
-  const sql = `UPDATE events SET name = ?, description = ? WHERE id = ?`;
+  const sql = `UPDATE events SET name = ?, description = ?, num_dives = ? WHERE id = ?`;
   
-  db.run(sql, [name, description, id], function(err) {
+  db.run(sql, [name, description, num_dives || 6, id], function(err) {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
@@ -219,6 +313,24 @@ app.delete('/api/events/:id', (req, res) => {
 app.get('/api/events/:eventId/competitors', (req, res) => {
   const { eventId } = req.params;
   db.all('SELECT * FROM competitors WHERE event_id = ?', [eventId], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json({ competitors: rows });
+  });
+});
+
+// Get all competitors for a competition (across all events)
+app.get('/api/competitions/:competitionId/competitors', (req, res) => {
+  const { competitionId } = req.params;
+  const sql = `
+    SELECT c.*, e.name as event_name 
+    FROM competitors c
+    JOIN events e ON c.event_id = e.id
+    WHERE e.competition_id = ?
+    ORDER BY e.name, c.last_name, c.first_name
+  `;
+  db.all(sql, [competitionId], (err, rows) => {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
@@ -314,10 +426,10 @@ app.get('/api/competitors/:competitorId/entries', (req, res) => {
 // Register entry (add dive to competitor's sheet)
 app.post('/api/competitors/:competitorId/entries', (req, res) => {
   const { competitorId } = req.params;
-  const { dive_number, fina_code, board_height, difficulty, description } = req.body;
+  const { fina_code, board_height, difficulty, description } = req.body;
 
-  if (!dive_number || !fina_code || !board_height || !difficulty) {
-    return res.status(400).json({ error: 'Dive number, FINA code, board height, and difficulty are required' });
+  if (!fina_code || !board_height || !difficulty) {
+    return res.status(400).json({ error: 'FINA code, board height, and difficulty are required' });
   }
 
   // Validate board height
@@ -338,14 +450,22 @@ app.post('/api/competitors/:competitorId/entries', (req, res) => {
     return res.status(400).json({ error: 'Difficulty must be between 1.0 and 4.5' });
   }
 
-  const sql = 'INSERT INTO entries (competitor_id, dive_number, fina_code, board_height, difficulty, description) VALUES (?, ?, ?, ?, ?, ?)';
-  db.run(sql, [competitorId, dive_number, normalizedFinaCode, board_height, difficulty, description], function(err) {
+  // Get next dive number for this competitor
+  db.get('SELECT COUNT(*) as count FROM entries WHERE competitor_id = ?', [competitorId], (err, row) => {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
-    res.status(201).json({
-      message: 'Entry registered successfully',
-      entry: { id: this.lastID, competitor_id: competitorId, dive_number, fina_code: normalizedFinaCode, board_height, difficulty, description }
+    
+    const dive_number = row.count + 1;
+    const sql = 'INSERT INTO entries (competitor_id, dive_number, fina_code, board_height, difficulty, description) VALUES (?, ?, ?, ?, ?, ?)';
+    db.run(sql, [competitorId, dive_number, normalizedFinaCode, board_height, difficulty, description], function(err) {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      res.status(201).json({
+        message: 'Entry registered successfully',
+        entry: { id: this.lastID, competitor_id: competitorId, dive_number, fina_code: normalizedFinaCode, board_height, difficulty, description }
+      });
     });
   });
 });
@@ -378,9 +498,9 @@ app.put('/api/entries/:id', (req, res) => {
     return res.status(400).json({ error: 'Difficulty must be between 1.0 and 4.5' });
   }
 
-  const sql = `UPDATE entries SET dive_number = ?, fina_code = ?, board_height = ?, difficulty = ?, description = ? WHERE id = ?`;
+  const sql = `UPDATE entries SET fina_code = ?, board_height = ?, difficulty = ?, description = ? WHERE id = ?`;
   
-  db.run(sql, [dive_number, normalizedFinaCode, board_height, difficulty, description, id], function(err) {
+  db.run(sql, [normalizedFinaCode, board_height, difficulty, description, id], function(err) {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
@@ -389,7 +509,7 @@ app.put('/api/entries/:id', (req, res) => {
     }
     res.json({
       message: 'Entry updated successfully',
-      entry: { id, dive_number, fina_code: normalizedFinaCode, board_height, difficulty, description }
+      entry: { id, fina_code: normalizedFinaCode, board_height, difficulty, description }
     });
   });
 });
@@ -769,6 +889,46 @@ app.get('/api/events/:eventId/leaderboard', (req, res) => {
       results.sort((a, b) => b.total_score - a.total_score);
       res.json({ leaderboard: results });
     });
+  });
+});
+
+// ==================== USER MANAGEMENT ENDPOINTS ====================
+
+// Get all users (admin only)
+app.get('/api/users', ensureAdmin, (req, res) => {
+  db.all('SELECT id, provider, email, display_name, role, profile_photo, created_at FROM users ORDER BY created_at DESC', [], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json({ users: rows });
+  });
+});
+
+// Update user role (admin only)
+app.put('/api/users/:id/role', ensureAdmin, (req, res) => {
+  const { id } = req.params;
+  const { role } = req.body;
+
+  // Validate role
+  const validRoles = ['viewer', 'judge', 'manager', 'admin'];
+  if (!role || !validRoles.includes(role)) {
+    return res.status(400).json({ error: 'Invalid role. Must be one of: viewer, judge, manager, admin' });
+  }
+
+  // Prevent admin from demoting themselves
+  if (parseInt(id) === req.user.id && role !== 'admin') {
+    return res.status(400).json({ error: 'You cannot change your own admin role' });
+  }
+
+  const sql = 'UPDATE users SET role = ? WHERE id = ?';
+  db.run(sql, [role, id], function(err) {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    if (this.changes === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    res.json({ message: 'User role updated successfully', role });
   });
 });
 

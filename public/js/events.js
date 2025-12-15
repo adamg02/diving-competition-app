@@ -69,6 +69,7 @@ function displayEvents(events) {
         <div class="data-card">
             <h3>${event.name}</h3>
             ${event.description ? `<p>${event.description}</p>` : ''}
+            <p><strong>Number of Dives:</strong> ${event.num_dives || 6}</p>
             <div class="card-actions">
                 <button class="btn btn-primary" onclick="editEvent(${event.id})">Edit</button>
                 <button class="btn btn-danger" onclick="deleteEvent(${event.id})">Delete</button>
@@ -82,7 +83,8 @@ async function handleEventSubmit(e) {
     
     const eventData = {
         name: document.getElementById('event-name').value,
-        description: document.getElementById('event-description').value
+        description: document.getElementById('event-description').value,
+        num_dives: parseInt(document.getElementById('num-dives').value)
     };
 
     try {
@@ -124,6 +126,7 @@ async function editEvent(id) {
             document.getElementById('event-id').value = data.event.id;
             document.getElementById('event-name').value = data.event.name;
             document.getElementById('event-description').value = data.event.description || '';
+            document.getElementById('num-dives').value = data.event.num_dives || 6;
             
             editingEventId = id;
             formTitle.textContent = 'Edit Event';

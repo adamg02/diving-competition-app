@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Management - Diving Competition App</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <header>
+        <div class="header-top">
+            <h1>Diving Competition Management System</h1>
+            <button class="hamburger-menu" id="hamburger-menu" aria-label="Toggle menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </div>
+        <div class="header-controls" id="header-controls">
+            <div class="competition-selector">
+                <label for="global-competition-select">Competition:</label>
+                <select id="global-competition-select">
+                    <option value="">Select a competition...</option>
+                </select>
+            </div>
+            <nav>
+                <a href="/">Competitions</a>
+                <a href="/competitors.html">Competitors</a>
+                <a href="/dive-sheets.html">Dive Sheets</a>
+                <a href="/judges.html">Judge Scoring</a>
+                <a href="/results.html">Live Results</a>
+                <a href="/users.html" class="active">User Management</a>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <section id="users-section">
+            <div class="section-header">
+                <h2>User Management</h2>
+                <p class="help-text">Manage user roles and permissions. Only administrators can access this page.</p>
+            </div>
+
+            <div id="users-container">
+                <table id="users-table">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Email</th>
+                            <th>Provider</th>
+                            <th>Role</th>
+                            <th>Joined</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="users-tbody">
+                        <!-- Users will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="role-info">
+                <h3>Role Descriptions</h3>
+                <ul>
+                    <li><strong>Viewer:</strong> Can view competitions and results</li>
+                    <li><strong>Judge:</strong> Can enter scores for competitions</li>
+                    <li><strong>Manager:</strong> Can manage competitions, events, and competitors</li>
+                    <li><strong>Admin:</strong> Full access including user management</li>
+                </ul>
+            </div>
+        </section>
+    </main>
+
+    <!-- Role Change Modal -->
+    <div id="role-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h3>Change User Role</h3>
+            <p id="role-modal-user"></p>
+            <form id="role-form">
+                <input type="hidden" id="role-user-id">
+                <div class="form-group">
+                    <label for="new-role">Select New Role</label>
+                    <select id="new-role" required>
+                        <option value="viewer">Viewer</option>
+                        <option value="judge">Judge</option>
+                        <option value="manager">Manager</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Update Role</button>
+                    <button type="button" class="btn btn-secondary" id="cancel-role-btn">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/js/hamburger-menu.js"></script>
+    <script src="/js/competition-selector.js"></script>
+    <script src="/js/auth-ui.js"></script>
+    <script src="/js/users.js"></script>
+</body>
+</html>
