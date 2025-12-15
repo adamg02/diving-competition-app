@@ -125,17 +125,168 @@ function handleJudgeChange() {
 
 async function loadEntries() {
     try {
-        const response = await fetch(`${API_URL}/api/events/${currentEventId}/entries`);
-        const data = await response.json();
+        // Check if event has a run order
+        const runOrderResponse = await fetch(`${API_URL}/api/events/${currentEventId}/run-order`);
+        const runOrderData = await runOrderResponse.json();
         
-        if (data.entries && data.entries.length > 0) {
-            displayEntries(data.entries);
+        if (runOrderData.runOrder && runOrderData.runOrder.length > 0) {
+            // Event is running with run order - show only next diver
+            await displayNextDiverInRunOrder(runOrderData.runOrder);
         } else {
-            entriesList.innerHTML = '<div class="empty-state"><p>No dive entries found for this event.</p></div>';
+            // No run order - show all entries (old behavior)
+            const response = await fetch(`${API_URL}/api/events/${currentEventId}/entries`);
+            const data = await response.json();
+            
+            if (data.entries && data.entries.length > 0) {
+                displayEntries(data.entries);
+            } else {
+                entriesList.innerHTML = '<div class="empty-state"><p>No dive entries found for this event.</p></div>';
+            }
         }
     } catch (error) {
         console.error('Error loading entries:', error);
         showMessage('Error loading entries', 'error');
+    }
+}
+
+async function displayNextDiverInRunOrder(runOrder) {
+    try {
+        // Get event details for num_dives
+        const eventResponse = await fetch(`${API_URL}/api/events/${currentEventId}`);
+        const eventData = await eventResponse.json();
+        const numDives = eventData.event.num_dives || 6;
+        
+        // Get all scores for this event
+        const scoresResponse = await fetch(`${API_URL}/api/events/${currentEventId}/scores`);
+        const scoresData = await scoresResponse.json();
+        
+        // Find the next dive that needs to be scored
+        let nextDive = null;
+        let currentDiveNumber = 1;
+        
+        // Go through each dive round
+        for (let diveNum = 1; diveNum <= numDives; diveNum++) {
+            // Go through each competitor in run order
+            for (const competitor of runOrder) {
+                // Check if this dive has been fully scored
+                const scoreEntry = scoresData.scores.find(s => 
+                    s.competitor_id === competitor.competitor_id && 
+                    s.dive_number === diveNum
+                );
+                
+                if (!scoreEntry || !scoreEntry.complete) {
+                    // This is the next dive to score
+                    nextDive = {
+                        competitor: competitor,
+                        diveNumber: diveNum
+                    };
+                    break;
+                }
+            }
+            if (nextDive) break;
+        }
+        
+        if (!nextDive) {
+            entriesList.innerHTML = `
+                <div class="empty-state">
+                    <h3>✓ Event Complete</h3>
+                    <p>All dives have been scored by all judges.</p>
+                </div>
+            `;
+            return;
+        }
+        
+        // Load entries for this specific competitor
+        const entriesResponse = await fetch(`${API_URL}/api/competitors/${nextDive.competitor.competitor_id}/dive-sheet`);
+        const entriesData = await entriesResponse.json();
+        
+        if (!entriesData.entries || entriesData.entries.length === 0) {
+            entriesList.innerHTML = `
+                <div class="empty-state">
+                    <p>Next diver has not submitted their dive sheet yet.</p>
+                    <p><strong>${nextDive.competitor.first_name} ${nextDive.competitor.last_name}</strong> (Dive ${nextDive.diveNumber})</p>
+                </div>
+            `;
+            return;
+        }
+        
+        const entry = entriesData.entries.find(e => e.dive_number === nextDive.diveNumber);
+        
+        if (!entry) {
+            entriesList.innerHTML = `
+                <div class="empty-state">
+                    <p>Waiting for dive sheet entry.</p>
+                    <p><strong>${nextDive.competitor.first_name} ${nextDive.competitor.last_name}</strong> - Dive ${nextDive.diveNumber}</p>
+                </div>
+            `;
+            return;
+        }
+        
+        // Get existing score for this judge
+        const existingScore = await getExistingScore(entry.id);
+        
+        // Display the single entry
+        entriesList.innerHTML = `
+            <div class="next-diver-card">
+                <div class="next-diver-header">
+                    <h2>Next Diver</h2>
+                    <span class="run-position">Position ${nextDive.competitor.run_position} of ${runOrder.length}</span>
+                </div>
+                
+                <div class="diver-info">
+                    <h3>${nextDive.competitor.first_name} ${nextDive.competitor.last_name}</h3>
+                    ${nextDive.competitor.club ? `<p class="competitor-club">${nextDive.competitor.club}</p>` : ''}
+                </div>
+                
+                <div class="dive-details-large">
+                    <div class="dive-detail-item">
+                        <span class="label">Dive Number</span>
+                        <span class="value">${entry.dive_number} of ${numDives}</span>
+                    </div>
+                    <div class="dive-detail-item">
+                        <span class="label">FINA Code</span>
+                        <span class="value fina-code-large">${entry.fina_code}</span>
+                    </div>
+                    <div class="dive-detail-item">
+                        <span class="label">Height</span>
+                        <span class="value">${entry.board_height}</span>
+                    </div>
+                    <div class="dive-detail-item">
+                        <span class="label">Difficulty</span>
+                        <span class="value difficulty-large">${entry.difficulty}</span>
+                    </div>
+                </div>
+                
+                <div class="dive-description-box">
+                    <p>${entry.description || 'No description'}</p>
+                </div>
+                
+                <div class="score-submission-box">
+                    <label for="score-${entry.id}">Your Score (0-10):</label>
+                    <input 
+                        type="number" 
+                        id="score-${entry.id}" 
+                        min="0" 
+                        max="10" 
+                        step="0.5" 
+                        value="${existingScore !== null ? existingScore : ''}"
+                        placeholder="0.0"
+                        class="score-input-large"
+                        autofocus
+                    >
+                    <button 
+                        onclick="submitScore(${entry.id})" 
+                        class="btn btn-primary btn-large"
+                    >
+                        ${existingScore !== null ? 'Update Score' : 'Submit Score'}
+                    </button>
+                </div>
+            </div>
+        `;
+        
+    } catch (error) {
+        console.error('Error displaying next diver:', error);
+        showMessage('Error loading next diver', 'error');
     }
 }
 

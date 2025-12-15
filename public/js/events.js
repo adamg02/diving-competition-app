@@ -70,12 +70,20 @@ function displayEvents(events) {
             <h3>${event.name}</h3>
             ${event.description ? `<p>${event.description}</p>` : ''}
             <p><strong>Number of Dives:</strong> ${event.num_dives || 6}</p>
+            ${event.is_running ? '<span class="status-badge status-submitted">Running</span>' : ''}
             <div class="card-actions">
                 <button class="btn btn-primary" onclick="editEvent(${event.id})">Edit</button>
                 <button class="btn btn-danger" onclick="deleteEvent(${event.id})">Delete</button>
+                <button class="btn btn-success" onclick="runEvent(${event.id}, '${event.name.replace(/'/g, "\\'")}')">
+                    ${event.is_running ? 'View Run Order' : 'Run Event'}
+                </button>
             </div>
         </div>
     `).join('');
+}
+
+function runEvent(eventId, eventName) {
+    window.location.href = `/run-order.html?eventId=${eventId}`;
 }
 
 async function handleEventSubmit(e) {

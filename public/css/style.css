@@ -1037,3 +1037,257 @@ main {
 .actions-cell .btn:last-child {
     margin-right: 0;
 }
+
+/* ==================== RUN ORDER TABLE ==================== */
+
+.run-order-table {
+    width: 100%;
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    border-collapse: collapse;
+    margin-top: 1rem;
+}
+
+.run-order-table thead {
+    background-color: #2a5298;
+    color: white;
+}
+
+.run-order-table th {
+    text-align: left;
+    padding: 1rem;
+    font-weight: 600;
+    font-size: 0.95rem;
+    white-space: nowrap;
+}
+
+.run-order-table td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.run-order-table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+.run-order-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.position-cell {
+    font-weight: 700;
+    color: #2a5298;
+    text-align: center;
+    width: 80px;
+    font-size: 1.1rem;
+}
+
+.name-cell {
+    min-width: 180px;
+}
+
+.score-cell {
+    text-align: center;
+    font-family: 'Courier New', monospace;
+    font-weight: 600;
+    color: #333;
+    min-width: 80px;
+}
+
+.score-cell.empty {
+    color: #ccc;
+}
+
+.total-cell {
+    background-color: #f5f5f5;
+    font-size: 1.1rem;
+    text-align: center;
+    color: #2a5298;
+    min-width: 100px;
+}
+
+.table-responsive {
+    overflow-x: auto;
+    margin: 1rem 0;
+}
+
+.btn-success {
+    background-color: #4caf50;
+    color: white;
+}
+
+.btn-success:hover {
+    background-color: #45a049;
+}
+
+/* ==================== JUDGE NEXT DIVER CARD ==================== */
+
+.next-diver-card {
+    background: white;
+    border-radius: 12px;
+    padding: 2rem;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    max-width: 800px;
+    margin: 2rem auto;
+}
+
+.next-diver-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #e0e0e0;
+}
+
+.next-diver-header h2 {
+    color: #2a5298;
+    margin: 0;
+}
+
+.run-position {
+    background-color: #e3f2fd;
+    color: #1976d2;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.diver-info {
+    text-align: center;
+    margin: 2rem 0;
+}
+
+.diver-info h3 {
+    font-size: 2rem;
+    color: #333;
+    margin: 0 0 0.5rem 0;
+}
+
+.competitor-club {
+    color: #666;
+    font-size: 1.1rem;
+    margin: 0;
+}
+
+.dive-details-large {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1.5rem;
+    margin: 2rem 0;
+    padding: 1.5rem;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+}
+
+.dive-detail-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.dive-detail-item .label {
+    font-size: 0.85rem;
+    color: #666;
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.dive-detail-item .value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #333;
+}
+
+.fina-code-large {
+    font-family: 'Courier New', monospace;
+    color: #2a5298;
+}
+
+.difficulty-large {
+    color: #f57c00;
+}
+
+.dive-description-box {
+    background-color: #fff3e0;
+    border-left: 4px solid #f57c00;
+    padding: 1.5rem;
+    margin: 2rem 0;
+    border-radius: 4px;
+}
+
+.dive-description-box p {
+    margin: 0;
+    font-size: 1.1rem;
+    color: #333;
+    line-height: 1.6;
+}
+
+.score-submission-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 2rem;
+    padding: 2rem;
+    background-color: #e8f5e9;
+    border-radius: 8px;
+}
+
+.score-submission-box label {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #333;
+}
+
+.score-input-large {
+    width: 150px;
+    padding: 1rem;
+    font-size: 2rem;
+    text-align: center;
+    border: 3px solid #4caf50;
+    border-radius: 8px;
+    font-weight: 700;
+}
+
+.score-input-large:focus {
+    outline: none;
+    border-color: #2e7d32;
+    box-shadow: 0 0 0 4px rgba(76, 175, 80, 0.2);
+}
+
+.btn-large {
+    padding: 1rem 2.5rem;
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+@media (max-width: 768px) {
+    .next-diver-card {
+        padding: 1rem;
+    }
+    
+    .diver-info h3 {
+        font-size: 1.5rem;
+    }
+    
+    .dive-details-large {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+        padding: 1rem;
+    }
+    
+    .dive-detail-item .value {
+        font-size: 1.2rem;
+    }
+    
+    .score-input-large {
+        width: 120px;
+        font-size: 1.5rem;
+    }
+}

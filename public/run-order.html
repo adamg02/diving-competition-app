@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Run Order - Diving Competition App</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <header>
+        <div class="header-top">
+            <h1>Diving Competition Management System</h1>
+            <button class="hamburger-menu" id="hamburger-menu" aria-label="Toggle menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </div>
+        <nav id="header-controls">
+            <a href="/">Competitions</a>
+            <a href="/competitors.html">Competitors</a>
+            <a href="/dive-sheets.html">Dive Sheets</a>
+            <a href="/judges.html">Judge Scoring</a>
+            <a href="/results.html">Live Results</a>
+        </nav>
+    </header>
+
+    <main>
+        <section id="run-order-section">
+            <div class="breadcrumb">
+                <a href="javascript:history.back()">← Back to Events</a>
+            </div>
+            
+            <div class="section-header">
+                <div>
+                    <h2 id="event-title">Run Order</h2>
+                    <p id="event-subtitle"></p>
+                </div>
+                <div id="run-order-actions">
+                    <button id="generate-order-btn" class="btn btn-success" style="display: none;">Generate Random Draw</button>
+                    <button id="stop-event-btn" class="btn btn-danger" style="display: none;">Stop Event</button>
+                </div>
+            </div>
+
+            <div id="no-competitors-message" class="empty-state" style="display: none;">
+                <p>No competitors have been added to this event yet.</p>
+                <p>Please add competitors before generating the run order.</p>
+            </div>
+
+            <div id="run-order-table-container" style="display: none;">
+                <div class="table-responsive">
+                    <table class="run-order-table">
+                        <thead>
+                            <tr>
+                                <th>Position</th>
+                                <th>Diver Name</th>
+                                <th>Club</th>
+                                <!-- Dive columns and Total Score will be added dynamically -->
+                            </tr>
+                        </thead>
+                        <tbody id="run-order-tbody">
+                            <!-- Run order will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="/js/hamburger-menu.js"></script>
+    <script src="/js/auth-ui.js"></script>
+    <script src="/js/run-order.js"></script>
+</body>
+</html>

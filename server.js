@@ -307,6 +307,206 @@ app.delete('/api/events/:id', (req, res) => {
   });
 });
 
+// ==================== RUN ORDER MANAGEMENT ENDPOINTS ====================
+
+// Get run order for an event
+app.get('/api/events/:eventId/run-order', (req, res) => {
+  const { eventId } = req.params;
+  const sql = `
+    SELECT ro.*, c.first_name, c.last_name, c.club
+    FROM run_orders ro
+    JOIN competitors c ON ro.competitor_id = c.id
+    WHERE ro.event_id = ?
+    ORDER BY ro.run_position
+  `;
+  
+  db.all(sql, [eventId], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json({ runOrder: rows });
+  });
+});
+
+// Generate random run order for an event
+app.post('/api/events/:eventId/run-order', (req, res) => {
+  const { eventId } = req.params;
+  
+  // First get all competitors for this event
+  db.all('SELECT * FROM competitors WHERE event_id = ?', [eventId], (err, competitors) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    
+    if (!competitors || competitors.length === 0) {
+      return res.status(400).json({ error: 'No competitors found for this event' });
+    }
+    
+    // Shuffle competitors (Fisher-Yates algorithm)
+    const shuffled = [...competitors];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    
+    // Delete any existing run order for this event
+    db.run('DELETE FROM run_orders WHERE event_id = ?', [eventId], (err) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      
+      // Insert new run order
+      const insertSql = 'INSERT INTO run_orders (event_id, competitor_id, run_position) VALUES (?, ?, ?)';
+      let completed = 0;
+      const errors = [];
+      
+      shuffled.forEach((competitor, index) => {
+        db.run(insertSql, [eventId, competitor.id, index + 1], function(err) {
+          if (err) {
+            errors.push(err.message);
+          }
+          
+          completed++;
+          if (completed === shuffled.length) {
+            if (errors.length > 0) {
+              return res.status(500).json({ error: errors.join(', ') });
+            }
+            
+            // Set event as running
+            db.run('UPDATE events SET is_running = 1 WHERE id = ?', [eventId], (err) => {
+              if (err) console.error('Error setting event as running:', err);
+            });
+            
+            // Return the complete run order
+            const selectSql = `
+              SELECT ro.*, c.first_name, c.last_name, c.club
+              FROM run_orders ro
+              JOIN competitors c ON ro.competitor_id = c.id
+              WHERE ro.event_id = ?
+              ORDER BY ro.run_position
+            `;
+            
+            db.all(selectSql, [eventId], (err, rows) => {
+              if (err) {
+                return res.status(500).json({ error: err.message });
+              }
+              res.json({ message: 'Run order generated successfully', runOrder: rows });
+            });
+          }
+        });
+      });
+    });
+  });
+});
+
+// Delete run order (stop event)
+app.delete('/api/events/:eventId/run-order', (req, res) => {
+  const { eventId } = req.params;
+  
+  db.run('DELETE FROM run_orders WHERE event_id = ?', [eventId], function(err) {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    
+    // Set event as not running
+    db.run('UPDATE events SET is_running = 0 WHERE id = ?', [eventId], (err) => {
+      if (err) console.error('Error setting event as not running:', err);
+    });
+    
+    res.json({ message: 'Run order deleted successfully' });
+  });
+});
+
+// Get aggregated scores for all competitors in an event
+app.get('/api/events/:eventId/scores', (req, res) => {
+  const { eventId } = req.params;
+  
+  const sql = `
+    SELECT 
+      c.id as competitor_id,
+      c.first_name,
+      c.last_name,
+      e.dive_number,
+      e.difficulty,
+      GROUP_CONCAT(s.score) as judge_scores,
+      COUNT(s.id) as score_count
+    FROM competitors c
+    JOIN entries e ON c.id = e.competitor_id
+    LEFT JOIN scores s ON e.id = s.entry_id
+    WHERE c.event_id = ?
+    GROUP BY c.id, e.dive_number
+    ORDER BY c.id, e.dive_number
+  `;
+  
+  db.all(sql, [eventId], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    
+    // Get event details to know number of judges
+    db.get('SELECT e.*, co.num_judges FROM events e JOIN competitions co ON e.competition_id = co.id WHERE e.id = ?', 
+      [eventId], (err, event) => {
+      if (err || !event) {
+        return res.status(500).json({ error: 'Event not found' });
+      }
+      
+      const numJudges = event.num_judges || 5;
+      
+      // Calculate final scores
+      const scores = rows.map(row => {
+        if (!row.judge_scores) {
+          return {
+            competitor_id: row.competitor_id,
+            first_name: row.first_name,
+            last_name: row.last_name,
+            dive_number: row.dive_number,
+            difficulty: row.difficulty,
+            final_score: null,
+            complete: false
+          };
+        }
+        
+        const judgeScores = row.judge_scores.split(',').map(Number);
+        
+        // Check if all judges have scored
+        if (judgeScores.length < numJudges) {
+          return {
+            competitor_id: row.competitor_id,
+            first_name: row.first_name,
+            last_name: row.last_name,
+            dive_number: row.dive_number,
+            difficulty: row.difficulty,
+            final_score: null,
+            complete: false
+          };
+        }
+        
+        // Calculate final score (remove highest and lowest if 5 judges, use all if 3)
+        let scoresToUse = judgeScores;
+        if (numJudges === 5) {
+          scoresToUse.sort((a, b) => a - b);
+          scoresToUse = scoresToUse.slice(1, -1); // Remove first and last
+        }
+        
+        const sum = scoresToUse.reduce((acc, score) => acc + score, 0);
+        const finalScore = sum * row.difficulty;
+        
+        return {
+          competitor_id: row.competitor_id,
+          first_name: row.first_name,
+          last_name: row.last_name,
+          dive_number: row.dive_number,
+          difficulty: row.difficulty,
+          final_score: finalScore,
+          complete: true
+        };
+      });
+      
+      res.json({ scores });
+    });
+  });
+});
+
 // ==================== COMPETITOR MANAGEMENT ENDPOINTS ====================
 
 // Get all competitors for an event

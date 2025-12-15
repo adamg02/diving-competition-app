@@ -203,6 +203,27 @@ db.serialize(() => {
     }
   });
 
+  // Run orders table (stores the running order for events)
+  db.run(`CREATE TABLE IF NOT EXISTS run_orders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_id INTEGER NOT NULL,
+    competitor_id INTEGER NOT NULL,
+    run_position INTEGER NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE,
+    FOREIGN KEY (competitor_id) REFERENCES competitors(id) ON DELETE CASCADE,
+    UNIQUE(event_id, competitor_id),
+    UNIQUE(event_id, run_position)
+  )`);
+
+  // Add is_running column to events if it doesn't exist
+  db.run(`ALTER TABLE events ADD COLUMN is_running INTEGER DEFAULT 0`, (err) => {
+    // Ignore error if column already exists
+    if (err && !err.message.includes('duplicate column name')) {
+      console.error('Error adding is_running column:', err.message);
+    }
+  });
+
   console.log('Database initialized successfully');
 });
 
