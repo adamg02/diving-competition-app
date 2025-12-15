@@ -224,6 +224,14 @@ db.serialize(() => {
     }
   });
 
+  // Add event_status column to events if it doesn't exist
+  db.run(`ALTER TABLE events ADD COLUMN event_status TEXT DEFAULT 'stopped'`, (err) => {
+    // Ignore error if column already exists
+    if (err && !err.message.includes('duplicate column name')) {
+      console.error('Error adding event_status column:', err.message);
+    }
+  });
+
   console.log('Database initialized successfully');
 });
 

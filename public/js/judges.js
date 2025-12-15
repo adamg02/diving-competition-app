@@ -6,8 +6,6 @@ let currentJudgeNumber = null;
 let numJudges = 5;
 
 // DOM Elements
-const eventSelectGroup = document.getElementById('event-select-group');
-const eventSelect = document.getElementById('event-select');
 const judgeSelectGroup = document.getElementById('judge-select-group');
 const judgeNumberSelect = document.getElementById('judge-number');
 const scoringContainer = document.getElementById('scoring-container');
@@ -18,7 +16,6 @@ const entriesList = document.getElementById('entries-list');
 const competitionStatus = document.getElementById('competition-status');
 
 // Event Listeners
-eventSelect.addEventListener('change', handleEventChange);
 judgeNumberSelect.addEventListener('change', handleJudgeChange);
 
 // Listen for global competition changes
@@ -40,7 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
 async function handleCompetitionChange(competitionId, competitionName) {
     if (competitionId) {
         currentCompetitionId = competitionId;
-        competitionStatus.textContent = `Viewing: ${competitionName}`;
+        competitionStatus.textContent = 'Loading active event...';
         
         // Fetch competition details to get num_judges
         try {
@@ -53,58 +50,40 @@ async function handleCompetitionChange(competitionId, competitionName) {
             numJudges = 5;
         }
         
-        eventSelectGroup.style.display = 'block';
-        judgeSelectGroup.style.display = 'none';
-        scoringContainer.style.display = 'none';
-        
         // Populate judge numbers based on competition settings
         judgeNumberSelect.innerHTML = '<option value="">-- Select Judge Number --</option>' +
             Array.from({length: numJudges}, (_, i) => `<option value="${i + 1}">Judge ${i + 1}</option>`).join('');
         
-        await loadEvents(competitionId);
+        await loadActiveEvent(competitionId);
     } else {
         currentCompetitionId = null;
         competitionStatus.textContent = 'Please select a competition from the dropdown above.';
-        eventSelectGroup.style.display = 'none';
         judgeSelectGroup.style.display = 'none';
         scoringContainer.style.display = 'none';
     }
 }
 
-async function loadEvents(competitionId) {
+async function loadActiveEvent(competitionId) {
     try {
-        const response = await fetch(`${API_URL}/api/competitions/${competitionId}/events`);
+        const response = await fetch(`${API_URL}/api/competitions/${competitionId}/active-event`);
         const data = await response.json();
         
-        if (data.events && data.events.length > 0) {
-            eventSelect.innerHTML = '<option value="">-- Select an Event --</option>' +
-                data.events.map(event => 
-                    `<option value="${event.id}" data-name="${event.name}">${event.name}</option>`
-                ).join('');
+        if (data.event) {
+            currentEventId = data.event.id;
+            eventNameSpan.textContent = data.event.name;
+            competitionStatus.textContent = `Active Event: ${data.event.name}`;
+            judgeSelectGroup.style.display = 'block';
+            scoringContainer.style.display = 'none';
         } else {
-            eventSelect.innerHTML = '<option value="">No events available</option>';
+            currentEventId = null;
+            competitionStatus.textContent = 'No active event. Please start an event from the Run Order page.';
+            judgeSelectGroup.style.display = 'none';
+            scoringContainer.style.display = 'none';
         }
     } catch (error) {
-        console.error('Error loading events:', error);
-        showMessage('Error loading events', 'error');
-    }
-}
-
-function handleEventChange() {
-    const eventId = eventSelect.value;
-    
-    if (eventId) {
-        currentEventId = eventId;
-        const selectedOption = eventSelect.options[eventSelect.selectedIndex];
-        const eventName = selectedOption.getAttribute('data-name');
-        
-        eventNameSpan.textContent = eventName;
-        judgeSelectGroup.style.display = 'block';
-        scoringContainer.style.display = 'none';
-    } else {
-        currentEventId = null;
-        judgeSelectGroup.style.display = 'none';
-        scoringContainer.style.display = 'none';
+        console.error('Error loading active event:', error);
+        competitionStatus.textContent = 'Error loading active event';
+        showMessage('Error loading active event', 'error');
     }
 }
 
@@ -412,11 +391,11 @@ async function submitScore(entryId) {
             showMessage('Score submitted successfully!', 'success');
             scoreInput.style.backgroundColor = '#e8f5e9'; // Light green
             
-            // Reload entries to update progress
+            // Move to next diver immediately after this judge submits their score
             setTimeout(() => {
                 scoreInput.style.backgroundColor = '';
                 loadEntries();
-            }, 1000);
+            }, 300);
         } else {
             const error = await response.json();
             showMessage(error.error || 'Failed to submit score', 'error');

@@ -43,7 +43,7 @@ async function handleCompetitionChange(competitionId, competitionName) {
     if (competitionId) {
         currentCompetitionId = competitionId;
         currentCompetitionName = competitionName;
-        competitionStatus.textContent = `Viewing: ${competitionName}`;
+        competitionStatus.textContent = 'Loading active event...';
         
         // Fetch competition details to get num_judges
         try {
@@ -56,14 +56,41 @@ async function handleCompetitionChange(competitionId, competitionName) {
             numJudges = 5;
         }
         
-        eventSelectGroup.style.display = 'block';
-        startButtonGroup.style.display = 'none';
-        await loadEvents(competitionId);
+        // Try to auto-load active event
+        await loadActiveEvent(competitionId);
     } else {
         currentCompetitionId = null;
         competitionStatus.textContent = 'Please select a competition from the dropdown above.';
         eventSelectGroup.style.display = 'none';
         startButtonGroup.style.display = 'none';
+    }
+}
+
+async function loadActiveEvent(competitionId) {
+    try {
+        const response = await fetch(`${API_URL}/api/competitions/${competitionId}/active-event`);
+        const data = await response.json();
+        
+        if (data.event) {
+            // Active event found - auto-load it
+            currentEventId = data.event.id;
+            currentEventName = data.event.name;
+            competitionStatus.textContent = `Active Event: ${data.event.name}`;
+            eventSelectGroup.style.display = 'none';
+            startButtonGroup.style.display = 'block';
+        } else {
+            // No active event - show event selector
+            competitionStatus.textContent = `Viewing: ${currentCompetitionName}`;
+            eventSelectGroup.style.display = 'block';
+            startButtonGroup.style.display = 'none';
+            await loadEvents(competitionId);
+        }
+    } catch (error) {
+        console.error('Error loading active event:', error);
+        // Fallback to manual selection
+        eventSelectGroup.style.display = 'block';
+        startButtonGroup.style.display = 'none';
+        await loadEvents(competitionId);
     }
 }
 

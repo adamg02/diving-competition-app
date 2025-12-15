@@ -7,7 +7,10 @@ let scoresData = {};
 
 const eventTitle = document.getElementById('event-title');
 const eventSubtitle = document.getElementById('event-subtitle');
+const eventStatusBadge = document.getElementById('event-status-badge');
 const generateOrderBtn = document.getElementById('generate-order-btn');
+const startEventBtn = document.getElementById('start-event-btn');
+const pauseEventBtn = document.getElementById('pause-event-btn');
 const stopEventBtn = document.getElementById('stop-event-btn');
 const noCompetitorsMessage = document.getElementById('no-competitors-message');
 const runOrderTableContainer = document.getElementById('run-order-table-container');
@@ -27,6 +30,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadEventAndRunOrder();
     
     generateOrderBtn.addEventListener('click', generateRunOrder);
+    startEventBtn.addEventListener('click', startEvent);
+    pauseEventBtn.addEventListener('click', pauseEvent);
     stopEventBtn.addEventListener('click', stopEvent);
     
     // Poll for score updates every 3 seconds
@@ -69,13 +74,20 @@ async function loadEventAndRunOrder() {
             // Run order exists
             runOrderData = runOrderResult.runOrder;
             generateOrderBtn.style.display = 'none';
-            stopEventBtn.style.display = 'inline-block';
+            
+            // Check event status
+            const eventStatus = currentEvent.event_status || 'stopped';
+            updateStatusDisplay(eventStatus);
+            
             displayRunOrder();
             await loadScores();
         } else {
             // No run order yet
             generateOrderBtn.style.display = 'inline-block';
+            startEventBtn.style.display = 'none';
+            pauseEventBtn.style.display = 'none';
             stopEventBtn.style.display = 'none';
+            eventStatusBadge.style.display = 'none';
             noCompetitorsMessage.style.display = 'none';
             runOrderTableContainer.style.display = 'none';
         }
@@ -99,9 +111,10 @@ async function generateRunOrder() {
         if (response.ok) {
             const data = await response.json();
             runOrderData = data.runOrder;
+            currentEvent.event_status = 'stopped';
             showMessage('Run order generated successfully', 'success');
             generateOrderBtn.style.display = 'none';
-            stopEventBtn.style.display = 'inline-block';
+            updateStatusDisplay('stopped');
             displayRunOrder();
             await loadScores();
         } else {
@@ -134,6 +147,68 @@ async function stopEvent() {
     } catch (error) {
         console.error('Error stopping event:', error);
         showMessage('Error stopping event', 'error');
+    }
+}
+
+async function startEvent() {
+    try {
+        const response = await fetch(`${API_URL}/api/events/${currentEventId}/status`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'started' })
+        });
+        
+        if (response.ok) {
+            currentEvent.event_status = 'started';
+            updateStatusDisplay('started');
+            showMessage('Event started', 'success');
+        } else {
+            const error = await response.json();
+            showMessage(error.error || 'Error starting event', 'error');
+        }
+    } catch (error) {
+        console.error('Error starting event:', error);
+        showMessage('Error starting event', 'error');
+    }
+}
+
+async function pauseEvent() {
+    try {
+        const response = await fetch(`${API_URL}/api/events/${currentEventId}/status`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'stopped' })
+        });
+        
+        if (response.ok) {
+            currentEvent.event_status = 'stopped';
+            updateStatusDisplay('stopped');
+            showMessage('Event paused', 'success');
+        } else {
+            const error = await response.json();
+            showMessage(error.error || 'Error pausing event', 'error');
+        }
+    } catch (error) {
+        console.error('Error pausing event:', error);
+        showMessage('Error pausing event', 'error');
+    }
+}
+
+function updateStatusDisplay(status) {
+    eventStatusBadge.style.display = 'inline-block';
+    
+    if (status === 'started') {
+        eventStatusBadge.textContent = 'Event Started';
+        eventStatusBadge.className = 'status-badge status-started';
+        startEventBtn.style.display = 'none';
+        pauseEventBtn.style.display = 'inline-block';
+        stopEventBtn.style.display = 'none';
+    } else {
+        eventStatusBadge.textContent = 'Event Stopped';
+        eventStatusBadge.className = 'status-badge status-stopped';
+        startEventBtn.style.display = 'inline-block';
+        pauseEventBtn.style.display = 'none';
+        stopEventBtn.style.display = 'none';
     }
 }
 

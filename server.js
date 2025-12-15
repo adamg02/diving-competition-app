@@ -236,6 +236,21 @@ app.get('/api/competitions/:competitionId/events', (req, res) => {
   });
 });
 
+// Get currently active (started) event for a competition
+app.get('/api/competitions/:competitionId/active-event', (req, res) => {
+  const { competitionId } = req.params;
+  db.get(
+    'SELECT * FROM events WHERE competition_id = ? AND event_status = ? AND is_running = 1 LIMIT 1',
+    [competitionId, 'started'],
+    (err, row) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      res.json({ event: row || null });
+    }
+  );
+});
+
 // Get single event
 app.get('/api/events/:id', (req, res) => {
   const { id } = req.params;
@@ -408,12 +423,34 @@ app.delete('/api/events/:eventId/run-order', (req, res) => {
       return res.status(500).json({ error: err.message });
     }
     
-    // Set event as not running
-    db.run('UPDATE events SET is_running = 0 WHERE id = ?', [eventId], (err) => {
+    // Set event as not running and reset status
+    db.run('UPDATE events SET is_running = 0, event_status = \'stopped\' WHERE id = ?', [eventId], (err) => {
       if (err) console.error('Error setting event as not running:', err);
     });
     
     res.json({ message: 'Run order deleted successfully' });
+  });
+});
+
+// Update event status (start/pause)
+app.put('/api/events/:eventId/status', (req, res) => {
+  const { eventId } = req.params;
+  const { status } = req.body;
+  
+  if (!status || !['started', 'stopped'].includes(status)) {
+    return res.status(400).json({ error: 'Invalid status. Must be "started" or "stopped"' });
+  }
+  
+  db.run('UPDATE events SET event_status = ? WHERE id = ?', [status, eventId], function(err) {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    
+    if (this.changes === 0) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+    
+    res.json({ message: 'Event status updated successfully', status });
   });
 });
 
@@ -943,7 +980,129 @@ app.get('/api/entries/:entryId/final-score', (req, res) => {
 app.get('/api/events/:eventId/live-results', (req, res) => {
   const { eventId } = req.params;
   
-  // Get all entries for the event with competitor info and scores
+  // Check if event has a run order
+  db.all('SELECT * FROM run_orders WHERE event_id = ? ORDER BY run_position', [eventId], (err, runOrder) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    
+    if (!runOrder || runOrder.length === 0) {
+      // No run order - use old behavior (alphabetical)
+      return getLiveResultsWithoutRunOrder(eventId, res);
+    }
+    
+    // Get event details for num_dives
+    db.get('SELECT e.*, co.num_judges FROM events e JOIN competitions co ON e.competition_id = co.id WHERE e.id = ?', 
+      [eventId], (err, event) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      
+      const numDives = event.num_dives || 6;
+      const numJudges = event.num_judges || 5;
+      
+      // Find the next dive based on run order
+      let nextDive = null;
+      
+      // Go through each dive round
+      for (let diveNum = 1; diveNum <= numDives; diveNum++) {
+        // Go through each competitor in run order
+        for (const competitor of runOrder) {
+          // Get the entry for this competitor and dive number
+          const entrySql = `
+            SELECT 
+              e.id as entry_id,
+              e.dive_number,
+              e.fina_code,
+              e.description,
+              e.board_height,
+              e.difficulty,
+              c.id as competitor_id,
+              c.first_name,
+              c.last_name,
+              c.club,
+              (SELECT COUNT(*) FROM scores WHERE scores.entry_id = e.id) as num_scores,
+              (SELECT GROUP_CONCAT(score) FROM scores WHERE scores.entry_id = e.id ORDER BY judge_number) as scores_list
+            FROM entries e
+            JOIN competitors c ON e.competitor_id = c.id
+            WHERE e.competitor_id = ? AND e.dive_number = ?
+          `;
+          
+          // This is synchronous in the loop - we need to make it work differently
+          // Let's collect all entries first, then determine next
+        }
+      }
+      
+      // Get all entries for competitors in this event
+      const sql = `
+        SELECT 
+          e.id as entry_id,
+          e.dive_number,
+          e.fina_code,
+          e.description,
+          e.board_height,
+          e.difficulty,
+          c.id as competitor_id,
+          c.first_name,
+          c.last_name,
+          c.club,
+          ro.run_position,
+          (SELECT COUNT(*) FROM scores WHERE scores.entry_id = e.id) as num_scores,
+          (SELECT GROUP_CONCAT(score) FROM scores WHERE scores.entry_id = e.id ORDER BY judge_number) as scores_list
+        FROM entries e
+        JOIN competitors c ON e.competitor_id = c.id
+        JOIN run_orders ro ON c.id = ro.competitor_id AND ro.event_id = ?
+        WHERE c.event_id = ?
+        ORDER BY e.dive_number, ro.run_position
+      `;
+      
+      db.all(sql, [eventId, eventId], (err, entries) => {
+        if (err) {
+          return res.status(500).json({ error: err.message });
+        }
+        
+        // Find the next incomplete dive following run order
+        let nextEntry = null;
+        for (let diveNum = 1; diveNum <= numDives; diveNum++) {
+          if (nextEntry) break;
+          
+          const divesForThisRound = entries.filter(e => e.dive_number === diveNum);
+          divesForThisRound.sort((a, b) => a.run_position - b.run_position);
+          
+          for (const entry of divesForThisRound) {
+            if (entry.num_scores < numJudges) {
+              nextEntry = entry;
+              break;
+            }
+          }
+        }
+        
+        if (!nextEntry) {
+          // All dives complete
+          return res.json({ entries: [], next_dive: null, all_complete: true });
+        }
+        
+        // Format the next dive entry
+        const processedEntry = {
+          ...nextEntry,
+          is_complete: nextEntry.num_scores >= numJudges,
+          is_next: true,
+          num_judges: numJudges,
+          scores_array: nextEntry.scores_list ? nextEntry.scores_list.split(',').map(Number) : []
+        };
+        
+        res.json({ 
+          entries: [processedEntry],
+          next_dive: processedEntry,
+          all_complete: false
+        });
+      });
+    });
+  });
+});
+
+// Helper function for events without run order
+function getLiveResultsWithoutRunOrder(eventId, res) {
   const sql = `
     SELECT 
       e.id as entry_id,
@@ -972,12 +1131,10 @@ app.get('/api/events/:eventId/live-results', (req, res) => {
       return res.status(500).json({ error: err.message });
     }
     
-    // Calculate completion status and find next dive
     let nextDiveIndex = -1;
     const processedEntries = entries.map((entry, index) => {
       const isComplete = entry.num_scores >= entry.num_judges;
       
-      // Find first incomplete dive as "next"
       if (nextDiveIndex === -1 && !isComplete) {
         nextDiveIndex = index;
       }
@@ -990,7 +1147,6 @@ app.get('/api/events/:eventId/live-results', (req, res) => {
       };
     });
     
-    // Mark the next dive
     if (nextDiveIndex >= 0) {
       processedEntries[nextDiveIndex].is_next = true;
     }
@@ -1000,7 +1156,7 @@ app.get('/api/events/:eventId/live-results', (req, res) => {
       next_dive_index: nextDiveIndex
     });
   });
-});
+}
 
 // Get leaderboard for an event (total scores by competitor)
 app.get('/api/events/:eventId/leaderboard', (req, res) => {

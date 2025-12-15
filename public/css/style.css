@@ -881,6 +881,26 @@ main {
     color: #2e7d32;
 }
 
+.status-started {
+    background-color: #e8f5e9;
+    color: #2e7d32;
+    animation: pulse 2s infinite;
+}
+
+.status-stopped {
+    background-color: #fff3e0;
+    color: #f57c00;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
 .competitor-dives {
     display: flex;
     flex-wrap: wrap;
@@ -1120,6 +1140,15 @@ main {
 
 .btn-success:hover {
     background-color: #45a049;
+}
+
+.btn-warning {
+    background-color: #ff9800;
+    color: white;
+}
+
+.btn-warning:hover {
+    background-color: #f57c00;
 }
 
 /* ==================== JUDGE NEXT DIVER CARD ==================== */
