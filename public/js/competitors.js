@@ -1,9 +1,12 @@
 const API_URL = window.location.origin;
 
+let currentCompetitionId = null;
 let currentEventId = null;
 let editingCompetitorId = null;
 
 // DOM Elements
+const competitionSelect = document.getElementById('competition-select');
+const eventSelectGroup = document.getElementById('event-select-group');
 const eventSelect = document.getElementById('event-select');
 const competitorForm = document.getElementById('competitor-form');
 const competitorFormElement = document.getElementById('competitor-form-element');
@@ -14,23 +17,60 @@ const competitorsList = document.getElementById('competitors-list');
 const formTitle = document.getElementById('form-title');
 
 // Event Listeners
+competitionSelect.addEventListener('change', handleCompetitionChange);
 eventSelect.addEventListener('change', handleEventChange);
 newCompetitorBtn.addEventListener('click', showCompetitorForm);
 cancelCompetitorBtn.addEventListener('click', hideCompetitorForm);
 competitorFormElement.addEventListener('submit', handleCompetitorSubmit);
 
 // Initialize
-loadEvents();
+loadCompetitions();
 
-async function loadEvents() {
+async function loadCompetitions() {
     try {
-        const response = await fetch(`${API_URL}/api/events`);
+        const response = await fetch(`${API_URL}/api/competitions`);
+        const data = await response.json();
+        
+        if (data.competitions && data.competitions.length > 0) {
+            competitionSelect.innerHTML = '<option value="">-- Select a Competition --</option>' +
+                data.competitions.map(competition => 
+                    `<option value="${competition.id}">${competition.name} - ${new Date(competition.date).toLocaleDateString()}</option>`
+                ).join('');
+        } else {
+            competitionSelect.innerHTML = '<option value="">No competitions available</option>';
+        }
+    } catch (error) {
+        console.error('Error loading competitions:', error);
+        showMessage('Error loading competitions', 'error');
+    }
+}
+
+async function handleCompetitionChange() {
+    const competitionId = competitionSelect.value;
+    
+    if (competitionId) {
+        currentCompetitionId = competitionId;
+        eventSelectGroup.style.display = 'block';
+        competitorsContainer.style.display = 'none';
+        competitorForm.style.display = 'none';
+        await loadEvents(competitionId);
+    } else {
+        currentCompetitionId = null;
+        eventSelectGroup.style.display = 'none';
+        competitorsContainer.style.display = 'none';
+        competitorForm.style.display = 'none';
+    }
+}
+
+async function loadEvents(competitionId) {
+    try {
+        const response = await fetch(`${API_URL}/api/competitions/${competitionId}/events`);
         const data = await response.json();
         
         if (data.events && data.events.length > 0) {
             eventSelect.innerHTML = '<option value="">-- Select an Event --</option>' +
                 data.events.map(event => 
-                    `<option value="${event.id}">${event.name} - ${new Date(event.date).toLocaleDateString()}</option>`
+                    `<option value="${event.id}">${event.name}</option>`
                 ).join('');
         } else {
             eventSelect.innerHTML = '<option value="">No events available</option>';
@@ -77,7 +117,6 @@ function displayCompetitors(competitors) {
         <div class="data-card">
             <h3>${competitor.first_name} ${competitor.last_name}</h3>
             ${competitor.club ? `<p><strong>Club:</strong> ${competitor.club}</p>` : ''}
-            ${competitor.age_group ? `<p><strong>Age Group:</strong> ${competitor.age_group}</p>` : ''}
             <div class="card-actions">
                 <button class="btn btn-primary" onclick="editCompetitor(${competitor.id})">Edit</button>
                 <button class="btn btn-danger" onclick="deleteCompetitor(${competitor.id})">Delete</button>
@@ -106,8 +145,7 @@ async function handleCompetitorSubmit(e) {
     const competitorData = {
         first_name: document.getElementById('first-name').value,
         last_name: document.getElementById('last-name').value,
-        club: document.getElementById('club').value,
-        age_group: document.getElementById('age-group').value
+        club: document.getElementById('club').value
     };
 
     try {
@@ -150,7 +188,6 @@ async function editCompetitor(id) {
             document.getElementById('first-name').value = data.competitor.first_name;
             document.getElementById('last-name').value = data.competitor.last_name;
             document.getElementById('club').value = data.competitor.club || '';
-            document.getElementById('age-group').value = data.competitor.age_group || '';
             
             editingCompetitorId = id;
             formTitle.textContent = 'Edit Competitor';

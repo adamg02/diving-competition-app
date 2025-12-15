@@ -70,9 +70,21 @@ This document describes all features implemented in the Diving Competition App.
 - Fill in dive details:
   - **Dive Number** (required): Position in the dive list (1, 2, 3, etc.)
   - **FINA Code** (required): Official FINA dive code (e.g., 107B, 305C, 5152B)
-  - **Difficulty Rating** (required): Between 1.0 and 4.5
-  - **Description** (optional): Dive name or description
+  - **Board/Platform Height** (required): Select from 1m, 3m, 5m, 7.5m, or 10m
+    - **HEIGHT-SPECIFIC DIFFICULTY**: Each dive has different difficulty ratings per height
+    - Lower heights (1m, 3m springboards) generally have lower DD
+    - Higher platforms (7.5m, 10m) have higher DD for the same dive
+    - Some dives are only available from certain heights (e.g., armstands from platform only)
+    - **AUTO-FILL FEATURE**: When you enter a valid FINA code AND select a height:
+      - **Difficulty Rating**: Retrieved from FINA database for that specific height
+      - **Description**: Full dive name (e.g., "Forward 3½ Somersaults Pike")
+      - **Height Validation**: System warns if dive is not available from selected height
+    - Visual feedback with green highlight shows auto-filled fields
+    - You can manually override any auto-filled values if needed
+  - **Difficulty Rating** (auto-filled or manual): Between 1.0 and 4.5
+  - **Description** (auto-filled or manual): Dive name or description
 - Click "Save Entry"
+- The system includes 150+ official FINA dive codes with height-specific DDs covering all dive groups and heights
 
 ### FINA Code Format
 FINA codes must follow the standard format:

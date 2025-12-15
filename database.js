@@ -6,13 +6,81 @@ const db = new sqlite3.Database(dbPath);
 
 // Initialize database tables
 db.serialize(() => {
-  // Events table
-  db.run(`CREATE TABLE IF NOT EXISTS events (
+  // First, check if we need to migrate the old structure
+  db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='events'", (err, oldEventsTable) => {
+    if (!err && oldEventsTable) {
+      // Check if old events table has the old structure (no competition_id column)
+      db.all("PRAGMA table_info(events)", (err, columns) => {
+        const hasCompetitionId = columns && columns.some(col => col.name === 'competition_id');
+        const hasDateColumn = columns && columns.some(col => col.name === 'date');
+        
+        if (!hasCompetitionId && hasDateColumn) {
+          // Old structure detected - need to migrate
+          console.log('Migrating old events table to new competitions/events structure...');
+          
+          // Step 1: Rename old events table to competitions
+          db.run(`ALTER TABLE events RENAME TO competitions`, (err) => {
+            if (err) {
+              console.error('Error renaming events table:', err.message);
+              return;
+            }
+            
+            // Step 2: Create new events table
+            db.run(`CREATE TABLE IF NOT EXISTS events (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              competition_id INTEGER NOT NULL,
+              name TEXT NOT NULL,
+              description TEXT,
+              created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+              FOREIGN KEY (competition_id) REFERENCES competitions(id) ON DELETE CASCADE
+            )`, (err) => {
+              if (err) {
+                console.error('Error creating new events table:', err.message);
+              } else {
+                console.log('Migration completed: events table restructured');
+              }
+            });
+          });
+        }
+      });
+    } else {
+      // No old table exists, create fresh structure
+      createFreshTables();
+    }
+  });
+  
+  function createFreshTables() {
+    // Competitions table (formerly events)
+    db.run(`CREATE TABLE IF NOT EXISTS competitions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      date TEXT NOT NULL,
+      location TEXT NOT NULL,
+      description TEXT,
+      num_judges INTEGER DEFAULT 5,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
+
+    // Events table (specific events within a competition)
+    db.run(`CREATE TABLE IF NOT EXISTS events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      competition_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      description TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (competition_id) REFERENCES competitions(id) ON DELETE CASCADE
+    )`);
+  }
+  
+  // Always ensure competitions table exists
+  db.run(`CREATE TABLE IF NOT EXISTS competitions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     date TEXT NOT NULL,
     location TEXT NOT NULL,
     description TEXT,
+    num_judges INTEGER DEFAULT 5,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
@@ -24,10 +92,14 @@ db.serialize(() => {
     first_name TEXT NOT NULL,
     last_name TEXT NOT NULL,
     club TEXT,
-    age_group TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
   )`);
+
+  // Remove age_group column if it exists
+  db.get("PRAGMA table_info(competitors)", (err, rows) => {
+    // Note: SQLite doesn't support DROP COLUMN directly, so we'll handle it in code
+  });
 
   // Entries table (competitors' dive entries)
   db.run(`CREATE TABLE IF NOT EXISTS entries (
@@ -35,11 +107,20 @@ db.serialize(() => {
     competitor_id INTEGER NOT NULL,
     dive_number INTEGER NOT NULL,
     fina_code TEXT NOT NULL,
+    board_height TEXT NOT NULL,
     difficulty REAL NOT NULL,
     description TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (competitor_id) REFERENCES competitors(id) ON DELETE CASCADE
   )`);
+
+  // Add board_height column if it doesn't exist (for existing databases)
+  db.run(`ALTER TABLE entries ADD COLUMN board_height TEXT`, (err) => {
+    // Ignore error if column already exists
+    if (err && !err.message.includes('duplicate column name')) {
+      console.error('Error adding board_height column:', err.message);
+    }
+  });
 
   // Dive sheets table (submission status)
   db.run(`CREATE TABLE IF NOT EXISTS dive_sheets (
@@ -51,6 +132,25 @@ db.serialize(() => {
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (competitor_id) REFERENCES competitors(id) ON DELETE CASCADE
   )`);
+
+  // Scores table (judge scores for each dive entry)
+  db.run(`CREATE TABLE IF NOT EXISTS scores (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    entry_id INTEGER NOT NULL,
+    judge_number INTEGER NOT NULL,
+    score REAL NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (entry_id) REFERENCES entries(id) ON DELETE CASCADE,
+    UNIQUE(entry_id, judge_number)
+  )`);
+
+  // Add num_judges column to competitions if it doesn't exist
+  db.run(`ALTER TABLE competitions ADD COLUMN num_judges INTEGER DEFAULT 5`, (err) => {
+    // Ignore error if column already exists
+    if (err && !err.message.includes('duplicate column name')) {
+      console.error('Error adding num_judges column:', err.message);
+    }
+  });
 
   console.log('Database initialized successfully');
 });

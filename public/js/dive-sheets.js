@@ -1,11 +1,14 @@
 const API_URL = window.location.origin;
 
+let currentCompetitionId = null;
 let currentEventId = null;
 let currentCompetitorId = null;
 let editingEntryId = null;
 let currentSheetStatus = 'draft';
 
 // DOM Elements
+const competitionSelect = document.getElementById('competition-select');
+const eventSelectGroup = document.getElementById('event-select-group');
 const eventSelect = document.getElementById('event-select');
 const competitorSelectGroup = document.getElementById('competitor-select-group');
 const competitorSelect = document.getElementById('competitor-select');
@@ -21,6 +24,7 @@ const submitSheetBtn = document.getElementById('submit-sheet-btn');
 const reopenSheetBtn = document.getElementById('reopen-sheet-btn');
 
 // Event Listeners
+competitionSelect.addEventListener('change', handleCompetitionChange);
 eventSelect.addEventListener('change', handleEventChange);
 competitorSelect.addEventListener('change', handleCompetitorChange);
 newEntryBtn.addEventListener('click', showEntryForm);
@@ -29,18 +33,145 @@ entryFormElement.addEventListener('submit', handleEntrySubmit);
 submitSheetBtn.addEventListener('click', submitDiveSheet);
 reopenSheetBtn.addEventListener('click', reopenDiveSheet);
 
-// Initialize
-loadEvents();
+// Add FINA code auto-population listener
+const finaCodeInput = document.getElementById('fina-code');
+const boardHeightSelect = document.getElementById('board-height');
 
-async function loadEvents() {
+finaCodeInput.addEventListener('blur', autoPopulateDiveInfo);
+finaCodeInput.addEventListener('input', () => {
+    // Auto-populate on input if code looks complete (3-4 digits + letter)
+    const code = finaCodeInput.value.toUpperCase().trim();
+    if (code.length >= 4 && /^[1-6]\d{2,3}[A-D]$/.test(code) && boardHeightSelect.value) {
+        autoPopulateDiveInfo();
+    }
+});
+
+// Also auto-populate when height changes
+boardHeightSelect.addEventListener('change', autoPopulateDiveInfo);
+
+// Initialize
+loadCompetitions();
+
+// Auto-populate difficulty and description based on FINA code and board height
+function autoPopulateDiveInfo() {
+    const finaCode = document.getElementById('fina-code').value.toUpperCase().trim();
+    const boardHeight = document.getElementById('board-height').value;
+    const difficultyInput = document.getElementById('difficulty');
+    const descriptionInput = document.getElementById('description');
+    
+    // Need both code and height to auto-populate
+    if (!finaCode || !boardHeight) {
+        return;
+    }
+    
+    // Only auto-populate if code is valid
+    if (finaCode && isValidFinaCode(finaCode)) {
+        const diveInfo = getDiveInfo(finaCode, boardHeight);
+        
+        if (diveInfo) {
+            // Auto-populate difficulty if empty or not manually changed
+            if (!difficultyInput.value || !difficultyInput.dataset.manuallyEdited) {
+                difficultyInput.value = diveInfo.difficulty;
+                difficultyInput.style.backgroundColor = '#e8f5e9'; // Light green to indicate auto-filled
+            }
+            
+            // Auto-populate description if empty or not manually changed
+            if (!descriptionInput.value || !descriptionInput.dataset.manuallyEdited) {
+                descriptionInput.value = diveInfo.description;
+                descriptionInput.style.backgroundColor = '#e8f5e9'; // Light green to indicate auto-filled
+            }
+            
+            // Show success message
+            const message = document.createElement('div');
+            message.className = 'auto-fill-message';
+            message.textContent = `✓ Auto-filled: ${diveInfo.description} (DD: ${diveInfo.difficulty} from ${boardHeight})`;
+            message.style.cssText = 'color: #4caf50; font-size: 0.9em; margin-top: 5px; animation: fadeIn 0.3s;';
+            
+            // Remove any existing message
+            const existingMessage = finaCodeInput.parentElement.querySelector('.auto-fill-message');
+            if (existingMessage) {
+                existingMessage.remove();
+            }
+            
+            finaCodeInput.parentElement.appendChild(message);
+            setTimeout(() => message.remove(), 3000);
+        } else if (isDiveAvailableAtHeight && !isDiveAvailableAtHeight(finaCode, boardHeight)) {
+            // Code is valid but not available at this height
+            const message = document.createElement('div');
+            message.className = 'auto-fill-message';
+            message.textContent = `⚠ Dive ${finaCode} is not available from ${boardHeight}. Please select a different height or dive code.`;
+            message.style.cssText = 'color: #ff9800; font-size: 0.9em; margin-top: 5px;';
+            
+            const existingMessage = finaCodeInput.parentElement.querySelector('.auto-fill-message');
+            if (existingMessage) {
+                existingMessage.remove();
+            }
+            
+            finaCodeInput.parentElement.appendChild(message);
+            setTimeout(() => message.remove(), 5000);
+        } else {
+            // Code format is valid but not in database
+            const message = document.createElement('div');
+            message.className = 'auto-fill-message';
+            message.textContent = '⚠ Valid FINA code format, but not in database. Please enter difficulty and description manually.';
+            message.style.cssText = 'color: #ff9800; font-size: 0.9em; margin-top: 5px;';
+            
+            const existingMessage = finaCodeInput.parentElement.querySelector('.auto-fill-message');
+            if (existingMessage) {
+                existingMessage.remove();
+            }
+            
+            finaCodeInput.parentElement.appendChild(message);
+            setTimeout(() => message.remove(), 4000);
+        }
+    }
+}
+
+async function loadCompetitions() {
     try {
-        const response = await fetch(`${API_URL}/api/events`);
+        const response = await fetch(`${API_URL}/api/competitions`);
+        const data = await response.json();
+        
+        if (data.competitions && data.competitions.length > 0) {
+            competitionSelect.innerHTML = '<option value="">-- Select a Competition --</option>' +
+                data.competitions.map(competition => 
+                    `<option value="${competition.id}">${competition.name} - ${new Date(competition.date).toLocaleDateString()}</option>`
+                ).join('');
+        } else {
+            competitionSelect.innerHTML = '<option value="">No competitions available</option>';
+        }
+    } catch (error) {
+        console.error('Error loading competitions:', error);
+        showMessage('Error loading competitions', 'error');
+    }
+}
+
+async function handleCompetitionChange() {
+    const competitionId = competitionSelect.value;
+    
+    if (competitionId) {
+        currentCompetitionId = competitionId;
+        eventSelectGroup.style.display = 'block';
+        competitorSelectGroup.style.display = 'none';
+        diveSheetContainer.style.display = 'none';
+        await loadEvents(competitionId);
+    } else {
+        currentCompetitionId = null;
+        eventSelectGroup.style.display = 'none';
+        competitorSelectGroup.style.display = 'none';
+        diveSheetContainer.style.display = 'none';
+    }
+}
+
+async function loadEvents(competitionId) {
+    try {
+        const response = await fetch(`${API_URL}/api/competitions/${competitionId}/events`);
         const data = await response.json();
         
         if (data.events && data.events.length > 0) {
             eventSelect.innerHTML = '<option value="">-- Select an Event --</option>' +
                 data.events.map(event => 
-                    `<option value="${event.id}">${event.name} - ${new Date(event.date).toLocaleDateString()}</option>`
+                    `<option value="${event.id}">${event.name}</option>`
                 ).join('');
         } else {
             eventSelect.innerHTML = '<option value="">No events available</option>';
@@ -143,6 +274,7 @@ function displayEntries(entries) {
             <div class="entry-number">${entry.dive_number}</div>
             <div class="entry-details">
                 <h4>FINA Code: ${entry.fina_code}</h4>
+                <p><strong>Height:</strong> ${entry.board_height || 'Not specified'}</p>
                 <p><strong>Difficulty:</strong> ${entry.difficulty}</p>
                 ${entry.description ? `<p><strong>Description:</strong> ${entry.description}</p>` : ''}
             </div>
@@ -159,6 +291,27 @@ function showEntryForm() {
     formTitle.textContent = 'Add Dive Entry';
     editingEntryId = null;
     entryFormElement.reset();
+    
+    // Reset auto-fill tracking
+    const difficultyInput = document.getElementById('difficulty');
+    const descriptionInput = document.getElementById('description');
+    const boardHeightSelect = document.getElementById('board-height');
+    delete difficultyInput.dataset.manuallyEdited;
+    delete descriptionInput.dataset.manuallyEdited;
+    difficultyInput.style.backgroundColor = '';
+    descriptionInput.style.backgroundColor = '';
+    
+    // Add manual edit tracking listeners
+    difficultyInput.addEventListener('input', function() {
+        this.dataset.manuallyEdited = 'true';
+        this.style.backgroundColor = '';
+    }, { once: true });
+    
+    descriptionInput.addEventListener('input', function() {
+        this.dataset.manuallyEdited = 'true';
+        this.style.backgroundColor = '';
+    }, { once: true });
+    
     entryForm.scrollIntoView({ behavior: 'smooth' });
 }
 
@@ -166,6 +319,14 @@ function hideEntryForm() {
     entryForm.style.display = 'none';
     editingEntryId = null;
     entryFormElement.reset();
+    
+    // Clear auto-fill indicators
+    const difficultyInput = document.getElementById('difficulty');
+    const descriptionInput = document.getElementById('description');
+    delete difficultyInput.dataset.manuallyEdited;
+    delete descriptionInput.dataset.manuallyEdited;
+    difficultyInput.style.backgroundColor = '';
+    descriptionInput.style.backgroundColor = '';
 }
 
 async function handleEntrySubmit(e) {
@@ -174,6 +335,7 @@ async function handleEntrySubmit(e) {
     const entryData = {
         dive_number: parseInt(document.getElementById('dive-number').value),
         fina_code: document.getElementById('fina-code').value.trim().toUpperCase(),
+        board_height: document.getElementById('board-height').value,
         difficulty: parseFloat(document.getElementById('difficulty').value),
         description: document.getElementById('description').value
     };
@@ -224,8 +386,15 @@ async function editEntry(id) {
             document.getElementById('entry-id').value = entry.id;
             document.getElementById('dive-number').value = entry.dive_number;
             document.getElementById('fina-code').value = entry.fina_code;
+            document.getElementById('board-height').value = entry.board_height || '';
             document.getElementById('difficulty').value = entry.difficulty;
             document.getElementById('description').value = entry.description || '';
+            
+            // Mark fields as manually edited since they contain existing data
+            const difficultyInput = document.getElementById('difficulty');
+            const descriptionInput = document.getElementById('description');
+            difficultyInput.dataset.manuallyEdited = 'true';
+            descriptionInput.dataset.manuallyEdited = 'true';
             
             editingEntryId = id;
             formTitle.textContent = 'Edit Dive Entry';

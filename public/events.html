@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Events - Diving Competition App</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <header>
+        <h1>Diving Competition Management System</h1>
+        <nav>
+            <a href="/">Competitions</a>
+            <a href="/competitors.html">Competitors</a>
+            <a href="/dive-sheets.html">Dive Sheets</a>
+            <a href="/judges.html">Judge Scoring</a>
+            <a href="/results.html">Live Results</a>
+        </nav>
+    </header>
+
+    <main>
+        <section id="events-section">
+            <div class="breadcrumb">
+                <a href="/">← Back to Competitions</a>
+            </div>
+            
+            <div class="section-header">
+                <h2 id="competition-title">Events</h2>
+                <button id="new-event-btn" class="btn btn-primary">Create New Event</button>
+            </div>
+
+            <div id="event-form" class="form-container" style="display: none;">
+                <h3 id="form-title">Create Event</h3>
+                <form id="event-form-element">
+                    <input type="hidden" id="event-id">
+                    <div class="form-group">
+                        <label for="event-name">Event Name *</label>
+                        <input type="text" id="event-name" placeholder="e.g., Men's 10m Platform, Women's 3m Springboard" required>
+                        <small>Examples: Men's 10m Platform, Women's 3m Springboard, Mixed Synchronized 3m</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="event-description">Description</label>
+                        <textarea id="event-description" rows="2" placeholder="Optional event details"></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">Save Event</button>
+                        <button type="button" id="cancel-event-btn" class="btn btn-secondary">Cancel</button>
+                    </div>
+                </form>
+            </div>
+
+            <div id="events-list" class="data-list">
+                <!-- Events will be loaded here dynamically -->
+            </div>
+        </section>
+    </main>
+
+    <script src="/js/events.js"></script>
+</body>
+</html>

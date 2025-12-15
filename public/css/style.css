@@ -41,6 +41,11 @@ nav a:hover {
     background-color: rgba(255, 255, 255, 0.2);
 }
 
+nav a.active {
+    background-color: rgba(255, 255, 255, 0.3);
+    font-weight: bold;
+}
+
 main {
     max-width: 1200px;
     margin: 2rem auto;
@@ -307,6 +312,146 @@ main {
 .empty-state p {
     font-size: 1.1rem;
     margin-bottom: 1rem;
+}
+
+/* Judge Scoring Styles */
+.scoring-info {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.scoring-info h3 {
+    color: #1e3c72;
+    margin-bottom: 0.5rem;
+}
+
+.competitor-section {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.competitor-section h3 {
+    color: #1e3c72;
+    margin-bottom: 0.3rem;
+}
+
+.competitor-club {
+    color: #6c757d;
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+.entries-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.entry-card {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 1rem;
+}
+
+.entry-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.fina-code {
+    background: #1e3c72;
+    color: white;
+    padding: 0.2rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: bold;
+}
+
+.dive-description {
+    font-size: 0.9rem;
+    color: #495057;
+    margin: 0.5rem 0;
+}
+
+.dive-details {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    color: #6c757d;
+    margin: 0.5rem 0;
+}
+
+.score-progress {
+    text-align: center;
+    color: #6c757d;
+    font-size: 0.8rem;
+    margin: 0.5rem 0;
+    padding: 0.3rem;
+    background: #e9ecef;
+    border-radius: 4px;
+}
+
+.score-input-group {
+    margin-top: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.score-input-group label {
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.score-input {
+    padding: 0.5rem;
+    border: 2px solid #dee2e6;
+    border-radius: 4px;
+    font-size: 1.1rem;
+    text-align: center;
+    font-weight: bold;
+}
+
+.score-input:focus {
+    outline: none;
+    border-color: #1e3c72;
+}
+
+.btn-sm {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 0;
+    }
 }
 
 @media (max-width: 768px) {

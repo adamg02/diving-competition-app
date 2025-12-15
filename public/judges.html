@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Judge Scoring - Diving Competition App</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <header>
+        <h1>Diving Competition Management System</h1>
+        <nav>
+            <a href="/">Competitions</a>
+            <a href="/competitors.html">Competitors</a>
+            <a href="/dive-sheets.html">Dive Sheets</a>
+            <a href="/judges.html">Judge Scoring</a>
+            <a href="/results.html">Live Results</a>
+        </nav>
+    </header>
+
+    <main>
+        <section id="judge-scoring-section">
+            <div class="section-header">
+                <h2>Judge Scoring</h2>
+            </div>
+
+            <div class="form-group">
+                <label for="competition-select">Select Competition *</label>
+                <select id="competition-select">
+                    <option value="">-- Select a Competition --</option>
+                </select>
+            </div>
+
+            <div class="form-group" id="event-select-group" style="display: none;">
+                <label for="event-select">Select Event *</label>
+                <select id="event-select">
+                    <option value="">-- Select an Event --</option>
+                </select>
+            </div>
+
+            <div class="form-group" id="judge-select-group" style="display: none;">
+                <label for="judge-number">Judge Number *</label>
+                <select id="judge-number">
+                    <option value="">-- Select Judge Number --</option>
+                </select>
+            </div>
+
+            <div id="scoring-container" style="display: none;">
+                <div class="scoring-info">
+                    <h3>Event: <span id="event-name"></span></h3>
+                    <p><strong>Judge:</strong> Judge #<span id="current-judge"></span></p>
+                    <p><strong>Total Judges:</strong> <span id="total-judges"></span></p>
+                </div>
+
+                <div id="entries-list" class="data-list">
+                    <!-- Entries will be loaded here dynamically -->
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="/js/judges.js"></script>
+</body>
+</html>

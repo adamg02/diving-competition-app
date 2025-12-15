@@ -11,7 +11,7 @@ const PORT = process.env.PORT || 3000;
 // Rate limiting configuration
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
+  max: 1000, // Limit each IP to 1000 requests per windowMs (supports live polling)
   message: 'Too many requests from this IP, please try again later.'
 });
 
@@ -24,11 +24,118 @@ app.use(express.static('public'));
 // Apply rate limiting to all API routes
 app.use('/api/', apiLimiter);
 
+// ==================== COMPETITION MANAGEMENT ENDPOINTS ====================
+
+// Get all competitions
+app.get('/api/competitions', (req, res) => {
+  db.all('SELECT * FROM competitions ORDER BY date DESC', [], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json({ competitions: rows });
+  });
+});
+
+// Get single competition
+app.get('/api/competitions/:id', (req, res) => {
+  const { id } = req.params;
+  db.get('SELECT * FROM competitions WHERE id = ?', [id], (err, row) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    if (!row) {
+      return res.status(404).json({ error: 'Competition not found' });
+    }
+    res.json({ competition: row });
+  });
+});
+
+// Create new competition
+app.post('/api/competitions', (req, res) => {
+  const { name, date, location, description, num_judges } = req.body;
+  
+  if (!name || !date || !location) {
+    return res.status(400).json({ error: 'Name, date, and location are required' });
+  }
+
+  // Validate date format (YYYY-MM-DD)
+  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+  if (!dateRegex.test(date)) {
+    return res.status(400).json({ error: 'Invalid date format. Use YYYY-MM-DD' });
+  }
+
+  // Validate num_judges (must be 3 or 5)
+  const judgeCount = num_judges || 5;
+  if (judgeCount !== 3 && judgeCount !== 5) {
+    return res.status(400).json({ error: 'Number of judges must be 3 or 5' });
+  }
+
+  const sql = 'INSERT INTO competitions (name, date, location, description, num_judges) VALUES (?, ?, ?, ?, ?)';
+  db.run(sql, [name, date, location, description, judgeCount], function(err) {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.status(201).json({ 
+      message: 'Competition created successfully',
+      competition: { id: this.lastID, name, date, location, description, num_judges: judgeCount }
+    });
+  });
+});
+
+// Update competition
+app.put('/api/competitions/:id', (req, res) => {
+  const { id } = req.params;
+  const { name, date, location, description, num_judges } = req.body;
+
+  // Validate date format if provided
+  if (date) {
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(date)) {
+      return res.status(400).json({ error: 'Invalid date format. Use YYYY-MM-DD' });
+    }
+  }
+
+  // Validate num_judges if provided (must be 3 or 5)
+  if (num_judges && num_judges !== 3 && num_judges !== 5) {
+    return res.status(400).json({ error: 'Number of judges must be 3 or 5' });
+  }
+
+  const sql = `UPDATE competitions SET name = ?, date = ?, location = ?, description = ?, num_judges = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`;
+  
+  db.run(sql, [name, date, location, description, num_judges || 5, id], function(err) {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    if (this.changes === 0) {
+      return res.status(404).json({ error: 'Competition not found' });
+    }
+    res.json({ 
+      message: 'Competition updated successfully',
+      competition: { id, name, date, location, description }
+    });
+  });
+});
+
+// Delete competition
+app.delete('/api/competitions/:id', (req, res) => {
+  const { id } = req.params;
+  db.run('DELETE FROM competitions WHERE id = ?', [id], function(err) {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    if (this.changes === 0) {
+      return res.status(404).json({ error: 'Competition not found' });
+    }
+    res.json({ message: 'Competition deleted successfully' });
+  });
+});
+
 // ==================== EVENT MANAGEMENT ENDPOINTS ====================
 
-// Get all events
-app.get('/api/events', (req, res) => {
-  db.all('SELECT * FROM events ORDER BY date DESC', [], (err, rows) => {
+// Get all events for a competition
+app.get('/api/competitions/:competitionId/events', (req, res) => {
+  const { competitionId } = req.params;
+  db.all('SELECT * FROM events WHERE competition_id = ? ORDER BY name', [competitionId], (err, rows) => {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
@@ -50,28 +157,23 @@ app.get('/api/events/:id', (req, res) => {
   });
 });
 
-// Create new event
-app.post('/api/events', (req, res) => {
-  const { name, date, location, description } = req.body;
+// Create new event within a competition
+app.post('/api/competitions/:competitionId/events', (req, res) => {
+  const { competitionId } = req.params;
+  const { name, description } = req.body;
   
-  if (!name || !date || !location) {
-    return res.status(400).json({ error: 'Name, date, and location are required' });
+  if (!name) {
+    return res.status(400).json({ error: 'Event name is required' });
   }
 
-  // Validate date format (YYYY-MM-DD)
-  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-  if (!dateRegex.test(date)) {
-    return res.status(400).json({ error: 'Invalid date format. Use YYYY-MM-DD' });
-  }
-
-  const sql = 'INSERT INTO events (name, date, location, description) VALUES (?, ?, ?, ?)';
-  db.run(sql, [name, date, location, description], function(err) {
+  const sql = 'INSERT INTO events (competition_id, name, description) VALUES (?, ?, ?)';
+  db.run(sql, [competitionId, name, description], function(err) {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
     res.status(201).json({ 
       message: 'Event created successfully',
-      event: { id: this.lastID, name, date, location, description }
+      event: { id: this.lastID, competition_id: competitionId, name, description }
     });
   });
 });
@@ -79,19 +181,11 @@ app.post('/api/events', (req, res) => {
 // Update event
 app.put('/api/events/:id', (req, res) => {
   const { id } = req.params;
-  const { name, date, location, description } = req.body;
+  const { name, description } = req.body;
 
-  // Validate date format if provided
-  if (date) {
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!dateRegex.test(date)) {
-      return res.status(400).json({ error: 'Invalid date format. Use YYYY-MM-DD' });
-    }
-  }
-
-  const sql = `UPDATE events SET name = ?, date = ?, location = ?, description = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`;
+  const sql = `UPDATE events SET name = ?, description = ? WHERE id = ?`;
   
-  db.run(sql, [name, date, location, description, id], function(err) {
+  db.run(sql, [name, description, id], function(err) {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
@@ -100,7 +194,7 @@ app.put('/api/events/:id', (req, res) => {
     }
     res.json({ 
       message: 'Event updated successfully',
-      event: { id, name, date, location, description }
+      event: { id, name, description }
     });
   });
 });
@@ -149,20 +243,20 @@ app.get('/api/competitors/:id', (req, res) => {
 // Add competitor to event
 app.post('/api/events/:eventId/competitors', (req, res) => {
   const { eventId } = req.params;
-  const { first_name, last_name, club, age_group } = req.body;
+  const { first_name, last_name, club } = req.body;
 
   if (!first_name || !last_name) {
     return res.status(400).json({ error: 'First name and last name are required' });
   }
 
-  const sql = 'INSERT INTO competitors (event_id, first_name, last_name, club, age_group) VALUES (?, ?, ?, ?, ?)';
-  db.run(sql, [eventId, first_name, last_name, club, age_group], function(err) {
+  const sql = 'INSERT INTO competitors (event_id, first_name, last_name, club) VALUES (?, ?, ?, ?)';
+  db.run(sql, [eventId, first_name, last_name, club], function(err) {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
     res.status(201).json({
       message: 'Competitor added successfully',
-      competitor: { id: this.lastID, event_id: eventId, first_name, last_name, club, age_group }
+      competitor: { id: this.lastID, event_id: eventId, first_name, last_name, club }
     });
   });
 });
@@ -170,13 +264,13 @@ app.post('/api/events/:eventId/competitors', (req, res) => {
 // Update competitor
 app.put('/api/competitors/:id', (req, res) => {
   const { id } = req.params;
-  const { first_name, last_name, club, age_group } = req.body;
+  const { first_name, last_name, club } = req.body;
 
   const sql = `UPDATE competitors 
-               SET first_name = ?, last_name = ?, club = ?, age_group = ?
+               SET first_name = ?, last_name = ?, club = ?
                WHERE id = ?`;
   
-  db.run(sql, [first_name, last_name, club, age_group, id], function(err) {
+  db.run(sql, [first_name, last_name, club, id], function(err) {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
@@ -185,7 +279,7 @@ app.put('/api/competitors/:id', (req, res) => {
     }
     res.json({
       message: 'Competitor updated successfully',
-      competitor: { id, first_name, last_name, club, age_group }
+      competitor: { id, first_name, last_name, club }
     });
   });
 });
@@ -220,10 +314,16 @@ app.get('/api/competitors/:competitorId/entries', (req, res) => {
 // Register entry (add dive to competitor's sheet)
 app.post('/api/competitors/:competitorId/entries', (req, res) => {
   const { competitorId } = req.params;
-  const { dive_number, fina_code, difficulty, description } = req.body;
+  const { dive_number, fina_code, board_height, difficulty, description } = req.body;
 
-  if (!dive_number || !fina_code || !difficulty) {
-    return res.status(400).json({ error: 'Dive number, FINA code, and difficulty are required' });
+  if (!dive_number || !fina_code || !board_height || !difficulty) {
+    return res.status(400).json({ error: 'Dive number, FINA code, board height, and difficulty are required' });
+  }
+
+  // Validate board height
+  const validHeights = ['1m', '3m', '5m', '7.5m', '10m'];
+  if (!validHeights.includes(board_height)) {
+    return res.status(400).json({ error: 'Board height must be one of: 1m, 3m, 5m, 7.5m, 10m' });
   }
 
   // Validate FINA code format (e.g., 107B, 305C, 5152B)
@@ -238,14 +338,14 @@ app.post('/api/competitors/:competitorId/entries', (req, res) => {
     return res.status(400).json({ error: 'Difficulty must be between 1.0 and 4.5' });
   }
 
-  const sql = 'INSERT INTO entries (competitor_id, dive_number, fina_code, difficulty, description) VALUES (?, ?, ?, ?, ?)';
-  db.run(sql, [competitorId, dive_number, normalizedFinaCode, difficulty, description], function(err) {
+  const sql = 'INSERT INTO entries (competitor_id, dive_number, fina_code, board_height, difficulty, description) VALUES (?, ?, ?, ?, ?, ?)';
+  db.run(sql, [competitorId, dive_number, normalizedFinaCode, board_height, difficulty, description], function(err) {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
     res.status(201).json({
       message: 'Entry registered successfully',
-      entry: { id: this.lastID, competitor_id: competitorId, dive_number, fina_code: normalizedFinaCode, difficulty, description }
+      entry: { id: this.lastID, competitor_id: competitorId, dive_number, fina_code: normalizedFinaCode, board_height, difficulty, description }
     });
   });
 });
@@ -253,7 +353,15 @@ app.post('/api/competitors/:competitorId/entries', (req, res) => {
 // Update entry
 app.put('/api/entries/:id', (req, res) => {
   const { id } = req.params;
-  const { dive_number, fina_code, difficulty, description } = req.body;
+  const { dive_number, fina_code, board_height, difficulty, description } = req.body;
+
+  // Validate board height if provided
+  if (board_height) {
+    const validHeights = ['1m', '3m', '5m', '7.5m', '10m'];
+    if (!validHeights.includes(board_height)) {
+      return res.status(400).json({ error: 'Board height must be one of: 1m, 3m, 5m, 7.5m, 10m' });
+    }
+  }
 
   // Normalize and validate FINA code format if provided
   let normalizedFinaCode = fina_code;
@@ -270,9 +378,9 @@ app.put('/api/entries/:id', (req, res) => {
     return res.status(400).json({ error: 'Difficulty must be between 1.0 and 4.5' });
   }
 
-  const sql = `UPDATE entries SET dive_number = ?, fina_code = ?, difficulty = ?, description = ? WHERE id = ?`;
+  const sql = `UPDATE entries SET dive_number = ?, fina_code = ?, board_height = ?, difficulty = ?, description = ? WHERE id = ?`;
   
-  db.run(sql, [dive_number, normalizedFinaCode, difficulty, description, id], function(err) {
+  db.run(sql, [dive_number, normalizedFinaCode, board_height, difficulty, description, id], function(err) {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
@@ -281,7 +389,7 @@ app.put('/api/entries/:id', (req, res) => {
     }
     res.json({
       message: 'Entry updated successfully',
-      entry: { id, dive_number, fina_code: normalizedFinaCode, difficulty, description }
+      entry: { id, dive_number, fina_code: normalizedFinaCode, board_height, difficulty, description }
     });
   });
 });
@@ -373,6 +481,294 @@ app.post('/api/competitors/:competitorId/dive-sheet/reopen', (req, res) => {
       return res.status(500).json({ error: err.message });
     }
     res.json({ message: 'Dive sheet reopened for editing', status: 'draft' });
+  });
+});
+
+// ===== JUDGE SCORING ENDPOINTS =====
+
+// Get all entries for an event (for judges to score)
+app.get('/api/events/:eventId/entries', (req, res) => {
+  const { eventId } = req.params;
+  
+  const sql = `SELECT e.*, c.first_name, c.last_name, c.club,
+               (SELECT COUNT(*) FROM scores WHERE scores.entry_id = e.id) as num_scores
+               FROM entries e
+               JOIN competitors c ON e.competitor_id = c.id
+               WHERE c.event_id = ?
+               ORDER BY c.last_name, c.first_name, e.dive_number`;
+  
+  db.all(sql, [eventId], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json({ entries: rows });
+  });
+});
+
+// Submit a judge's score for an entry
+app.post('/api/scores', (req, res) => {
+  const { entry_id, judge_number, score } = req.body;
+  
+  if (!entry_id || !judge_number || score === undefined) {
+    return res.status(400).json({ error: 'Entry ID, judge number, and score are required' });
+  }
+  
+  // Validate score (0.0 to 10.0 in 0.5 increments)
+  if (score < 0 || score > 10 || (score * 2) % 1 !== 0) {
+    return res.status(400).json({ error: 'Score must be between 0 and 10 in 0.5 increments' });
+  }
+  
+  const sql = `INSERT INTO scores (entry_id, judge_number, score) 
+               VALUES (?, ?, ?)
+               ON CONFLICT(entry_id, judge_number) DO UPDATE SET score = ?, created_at = CURRENT_TIMESTAMP`;
+  
+  db.run(sql, [entry_id, judge_number, score, score], function(err) {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.status(201).json({ 
+      message: 'Score submitted successfully',
+      score: { id: this.lastID, entry_id, judge_number, score }
+    });
+  });
+});
+
+// Get scores for a specific entry
+app.get('/api/entries/:entryId/scores', (req, res) => {
+  const { entryId } = req.params;
+  
+  const sql = 'SELECT * FROM scores WHERE entry_id = ? ORDER BY judge_number';
+  
+  db.all(sql, [entryId], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json({ scores: rows });
+  });
+});
+
+// Calculate final score for an entry
+app.get('/api/entries/:entryId/final-score', (req, res) => {
+  const { entryId } = req.params;
+  
+  // Get the entry to find difficulty and competition settings
+  const entrySql = `SELECT e.*, c.event_id, comp.num_judges
+                    FROM entries e
+                    JOIN competitors c ON e.competitor_id = c.id
+                    JOIN events ev ON c.event_id = ev.id
+                    JOIN competitions comp ON ev.competition_id = comp.id
+                    WHERE e.id = ?`;
+  
+  db.get(entrySql, [entryId], (err, entry) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    if (!entry) {
+      return res.status(404).json({ error: 'Entry not found' });
+    }
+    
+    const numJudges = entry.num_judges || 5;
+    
+    // Get all scores for this entry
+    const scoresSql = 'SELECT score FROM scores WHERE entry_id = ? ORDER BY score';
+    
+    db.all(scoresSql, [entryId], (err, scores) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      
+      if (scores.length === 0) {
+        return res.json({ final_score: 0, message: 'No scores submitted yet' });
+      }
+      
+      if (scores.length < numJudges) {
+        return res.json({ 
+          final_score: null, 
+          message: `Waiting for all ${numJudges} judges (${scores.length}/${numJudges} submitted)`,
+          scores_received: scores.length,
+          scores_needed: numJudges
+        });
+      }
+      
+      let scoresArray = scores.map(s => s.score);
+      
+      // For 5 judges, remove highest and lowest
+      if (numJudges === 5 && scoresArray.length >= 5) {
+        scoresArray.sort((a, b) => a - b);
+        scoresArray = scoresArray.slice(1, -1); // Remove first and last
+      }
+      
+      // Calculate average
+      const sum = scoresArray.reduce((acc, score) => acc + score, 0);
+      const average = sum / scoresArray.length;
+      
+      // Multiply by difficulty
+      const finalScore = average * entry.difficulty;
+      
+      res.json({ 
+        final_score: Math.round(finalScore * 100) / 100, // Round to 2 decimal places
+        average_score: Math.round(average * 100) / 100,
+        difficulty: entry.difficulty,
+        num_judges: numJudges,
+        scores_used: scoresArray,
+        all_scores: scores.map(s => s.score)
+      });
+    });
+  });
+});
+
+// ===== LIVE RESULTS ENDPOINTS =====
+
+// Get current dive order and status for an event
+app.get('/api/events/:eventId/live-results', (req, res) => {
+  const { eventId } = req.params;
+  
+  // Get all entries for the event with competitor info and scores
+  const sql = `
+    SELECT 
+      e.id as entry_id,
+      e.dive_number,
+      e.fina_code,
+      e.description,
+      e.board_height,
+      e.difficulty,
+      c.id as competitor_id,
+      c.first_name,
+      c.last_name,
+      c.club,
+      comp.num_judges,
+      (SELECT COUNT(*) FROM scores WHERE scores.entry_id = e.id) as num_scores,
+      (SELECT GROUP_CONCAT(score) FROM scores WHERE scores.entry_id = e.id ORDER BY judge_number) as scores_list
+    FROM entries e
+    JOIN competitors c ON e.competitor_id = c.id
+    JOIN events ev ON c.event_id = ev.id
+    JOIN competitions comp ON ev.competition_id = comp.id
+    WHERE c.event_id = ?
+    ORDER BY c.last_name, c.first_name, e.dive_number
+  `;
+  
+  db.all(sql, [eventId], (err, entries) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    
+    // Calculate completion status and find next dive
+    let nextDiveIndex = -1;
+    const processedEntries = entries.map((entry, index) => {
+      const isComplete = entry.num_scores >= entry.num_judges;
+      
+      // Find first incomplete dive as "next"
+      if (nextDiveIndex === -1 && !isComplete) {
+        nextDiveIndex = index;
+      }
+      
+      return {
+        ...entry,
+        is_complete: isComplete,
+        is_next: false,
+        scores_array: entry.scores_list ? entry.scores_list.split(',').map(Number) : []
+      };
+    });
+    
+    // Mark the next dive
+    if (nextDiveIndex >= 0) {
+      processedEntries[nextDiveIndex].is_next = true;
+    }
+    
+    res.json({ 
+      entries: processedEntries,
+      next_dive_index: nextDiveIndex
+    });
+  });
+});
+
+// Get leaderboard for an event (total scores by competitor)
+app.get('/api/events/:eventId/leaderboard', (req, res) => {
+  const { eventId } = req.params;
+  
+  const sql = `
+    SELECT 
+      c.id as competitor_id,
+      c.first_name,
+      c.last_name,
+      c.club,
+      COUNT(e.id) as total_dives,
+      SUM(CASE WHEN (SELECT COUNT(*) FROM scores WHERE scores.entry_id = e.id) >= comp.num_judges THEN 1 ELSE 0 END) as completed_dives
+    FROM competitors c
+    LEFT JOIN entries e ON c.id = e.competitor_id
+    JOIN events ev ON c.event_id = ev.id
+    JOIN competitions comp ON ev.competition_id = comp.id
+    WHERE c.event_id = ?
+    GROUP BY c.id
+    ORDER BY c.last_name, c.first_name
+  `;
+  
+  db.all(sql, [eventId], (err, competitors) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    
+    // For each competitor, calculate their total score
+    const promises = competitors.map(competitor => {
+      return new Promise((resolve) => {
+        const entryScoreSql = `
+          SELECT e.id, e.difficulty, comp.num_judges
+          FROM entries e
+          JOIN competitors c ON e.competitor_id = c.id
+          JOIN events ev ON c.event_id = ev.id
+          JOIN competitions comp ON ev.competition_id = comp.id
+          WHERE e.competitor_id = ?
+        `;
+        
+        db.all(entryScoreSql, [competitor.competitor_id], (err, entries) => {
+          if (err || !entries) {
+            resolve({ ...competitor, total_score: 0 });
+            return;
+          }
+          
+          let totalScore = 0;
+          let processedCount = 0;
+          
+          entries.forEach(entry => {
+            const scoresSql = 'SELECT score FROM scores WHERE entry_id = ? ORDER BY score';
+            
+            db.all(scoresSql, [entry.id], (err, scores) => {
+              processedCount++;
+              
+              if (!err && scores && scores.length >= entry.num_judges) {
+                let scoresArray = scores.map(s => s.score);
+                
+                // Remove highest and lowest for 5 judges
+                if (entry.num_judges === 5 && scoresArray.length >= 5) {
+                  scoresArray.sort((a, b) => a - b);
+                  scoresArray = scoresArray.slice(1, -1);
+                }
+                
+                const average = scoresArray.reduce((sum, s) => sum + s, 0) / scoresArray.length;
+                totalScore += average * entry.difficulty;
+              }
+              
+              if (processedCount === entries.length) {
+                resolve({ 
+                  ...competitor, 
+                  total_score: Math.round(totalScore * 100) / 100 
+                });
+              }
+            });
+          });
+          
+          if (entries.length === 0) {
+            resolve({ ...competitor, total_score: 0 });
+          }
+        });
+      });
+    });
+    
+    Promise.all(promises).then(results => {
+      // Sort by total score descending
+      results.sort((a, b) => b.total_score - a.total_score);
+      res.json({ leaderboard: results });
+    });
   });
 });
 

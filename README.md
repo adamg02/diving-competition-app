@@ -19,6 +19,10 @@ A comprehensive web application for managing diving competitions, competitors, a
 
 ### Dive Sheet Functionality
 - Input FINA dive codes for each competitor
+- **Select board/platform height** (1m, 3m, 5m, 7.5m, 10m springboard/platform)
+- **Auto-populate difficulty ratings and descriptions** based on FINA dive code and height
+- Height-specific difficulty ratings per FINA standards
+- Real-time validation and feedback for dive codes and height availability
 - Manage dive difficulty ratings
 - Add multiple dive entries per competitor
 - Edit and delete dive entries
@@ -108,10 +112,41 @@ http://localhost:3000
 2. Select an event from the dropdown
 3. Select a competitor from the second dropdown
 4. Click "Add Dive Entry" to input a new dive
-5. Enter the dive number, FINA code (e.g., 107B, 305C), difficulty rating, and optional description
-6. Add all required dives for the competitor
-7. Click "Submit Dive Sheet" when the sheet is complete
-8. Use "Reopen for Editing" if changes are needed after submission
+5. Enter the dive number and FINA code (e.g., 107B, 305C)
+6. Select the board/platform height (1m, 3m, 5m, 7.5m, or 10m)
+   - **The difficulty rating and description will automatically populate** based on the FINA code and height
+   - System validates if the dive is available from the selected height
+   - Difficulty ratings vary by height according to FINA standards
+   - You can manually override any auto-filled values if needed
+7. Add all required dives for the competitor
+8. Click "Submit Dive Sheet" when the sheet is complete
+9. Use "Reopen for Editing" if changes are needed after submission
+
+## FINA Dive Code Database
+
+The application includes a comprehensive database of FINA dive codes with automatic lookup of:
+- **Height-specific difficulty ratings (DD)** for each board/platform
+- Dive descriptions
+- Height availability validation
+
+**Supported board/platform heights:**
+- **1m Springboard**: Lower difficulty ratings for most dives
+- **3m Springboard**: Standard springboard height
+- **5m Platform**: Entry-level platform
+- **7.5m Platform**: Intermediate platform
+- **10m Platform**: Olympic height with highest difficulty ratings
+
+**Supported dive groups:**
+- **Forward (1XX)**: 101A-109C (e.g., 107B from 3m - DD: 3.0, from 10m - DD: 3.3)
+- **Back (2XX)**: 201A-208C (e.g., 205C from 3m - DD: 2.4, from 10m - DD: 2.6)
+- **Reverse (3XX)**: 301A-307C (e.g., 305C from 3m - DD: 2.5, from 10m - DD: 2.7)
+- **Inward (4XX)**: 401A-407C (e.g., 403B from 3m - DD: 1.8, from 10m - DD: 2.0)
+- **Twisting (5XXX)**: 5122B-5353B (e.g., 5152B from 3m - DD: 2.4, from 10m - DD: 2.6)
+- **Armstand (6XX)**: 601A-606C - **Platform only** (e.g., 603B from 10m - DD: 1.8)
+
+**Note:** Difficulty ratings increase with height. Some advanced dives are only available from higher platforms (e.g., 107B requires 3m or higher). Armstand dives are exclusively performed from platform (7.5m and 10m).
+
+The system validates FINA code format, checks height availability, and provides real-time feedback.
 
 ## Database Schema
 

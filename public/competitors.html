@@ -10,9 +10,11 @@
     <header>
         <h1>Diving Competition Management System</h1>
         <nav>
-            <a href="/">Events</a>
+            <a href="/">Competitions</a>
             <a href="/competitors.html">Competitors</a>
             <a href="/dive-sheets.html">Dive Sheets</a>
+            <a href="/judges.html">Judge Scoring</a>
+            <a href="/results.html">Live Results</a>
         </nav>
     </header>
 
@@ -23,6 +25,13 @@
             </div>
 
             <div class="form-group">
+                <label for="competition-select">Select Competition *</label>
+                <select id="competition-select">
+                    <option value="">-- Select a Competition --</option>
+                </select>
+            </div>
+
+            <div class="form-group" id="event-select-group" style="display: none;">
                 <label for="event-select">Select Event *</label>
                 <select id="event-select">
                     <option value="">-- Select an Event --</option>
@@ -43,11 +52,7 @@
                     </div>
                     <div class="form-group">
                         <label for="club">Club</label>
-                        <input type="text" id="club">
-                    </div>
-                    <div class="form-group">
-                        <label for="age-group">Age Group</label>
-                        <input type="text" id="age-group" placeholder="e.g., Junior, Senior">
+                        <input type="text" id="club" placeholder="Optional">
                     </div>
                     <div class="form-actions">
                         <button type="submit" class="btn btn-primary">Save Competitor</button>

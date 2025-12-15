@@ -1,5 +1,6 @@
 const API_URL = window.location.origin;
 
+let currentCompetitionId = null;
 let editingEventId = null;
 
 // DOM Elements
@@ -9,6 +10,7 @@ const eventFormElement = document.getElementById('event-form-element');
 const cancelEventBtn = document.getElementById('cancel-event-btn');
 const eventsList = document.getElementById('events-list');
 const formTitle = document.getElementById('form-title');
+const competitionTitle = document.getElementById('competition-title');
 
 // Event Listeners
 newEventBtn.addEventListener('click', showEventForm);
@@ -16,7 +18,22 @@ cancelEventBtn.addEventListener('click', hideEventForm);
 eventFormElement.addEventListener('submit', handleEventSubmit);
 
 // Initialize
-loadEvents();
+loadCompetitionAndEvents();
+
+function loadCompetitionAndEvents() {
+    // Get competition from sessionStorage
+    currentCompetitionId = sessionStorage.getItem('selectedCompetitionId');
+    const competitionName = sessionStorage.getItem('selectedCompetitionName');
+    
+    if (!currentCompetitionId) {
+        eventsList.innerHTML = '<div class="empty-state"><p>No competition selected. <a href="/">Go to Competitions</a></p></div>';
+        newEventBtn.disabled = true;
+        return;
+    }
+    
+    competitionTitle.textContent = `Events for: ${competitionName}`;
+    loadEvents();
+}
 
 function showEventForm() {
     eventForm.style.display = 'block';
@@ -33,7 +50,7 @@ function hideEventForm() {
 
 async function loadEvents() {
     try {
-        const response = await fetch(`${API_URL}/api/events`);
+        const response = await fetch(`${API_URL}/api/competitions/${currentCompetitionId}/events`);
         const data = await response.json();
         
         if (data.events && data.events.length > 0) {
@@ -51,9 +68,7 @@ function displayEvents(events) {
     eventsList.innerHTML = events.map(event => `
         <div class="data-card">
             <h3>${event.name}</h3>
-            <p><strong>Date:</strong> ${new Date(event.date).toLocaleDateString()}</p>
-            <p><strong>Location:</strong> ${event.location}</p>
-            ${event.description ? `<p><strong>Description:</strong> ${event.description}</p>` : ''}
+            ${event.description ? `<p>${event.description}</p>` : ''}
             <div class="card-actions">
                 <button class="btn btn-primary" onclick="editEvent(${event.id})">Edit</button>
                 <button class="btn btn-danger" onclick="deleteEvent(${event.id})">Delete</button>
@@ -67,8 +82,6 @@ async function handleEventSubmit(e) {
     
     const eventData = {
         name: document.getElementById('event-name').value,
-        date: document.getElementById('event-date').value,
-        location: document.getElementById('event-location').value,
         description: document.getElementById('event-description').value
     };
 
@@ -81,7 +94,7 @@ async function handleEventSubmit(e) {
                 body: JSON.stringify(eventData)
             });
         } else {
-            response = await fetch(`${API_URL}/api/events`, {
+            response = await fetch(`${API_URL}/api/competitions/${currentCompetitionId}/events`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(eventData)
@@ -110,8 +123,6 @@ async function editEvent(id) {
         if (data.event) {
             document.getElementById('event-id').value = data.event.id;
             document.getElementById('event-name').value = data.event.name;
-            document.getElementById('event-date').value = data.event.date;
-            document.getElementById('event-location').value = data.event.location;
             document.getElementById('event-description').value = data.event.description || '';
             
             editingEventId = id;
@@ -126,7 +137,7 @@ async function editEvent(id) {
 }
 
 async function deleteEvent(id) {
-    if (!confirm('Are you sure you want to delete this event? This will also delete all associated competitors and entries.')) {
+    if (!confirm('Are you sure you want to delete this event? This will also delete all competitors and dive sheets for this event.')) {
         return;
     }
 
@@ -156,5 +167,5 @@ function showMessage(message, type) {
     const main = document.querySelector('main');
     main.insertBefore(messageDiv, main.firstChild);
     
-    setTimeout(() => messageDiv.remove(), 5000);
+    setTimeout(() => message.remove(), 5000);
 }

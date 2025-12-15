@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Results - Diving Competition</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        body.dashboard-mode {
+            background: #000;
+            color: #fff;
+        }
+        
+        body.dashboard-mode header {
+            display: none;
+        }
+        
+        body.dashboard-mode main {
+            max-width: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .dashboard-container {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: linear-gradient(135deg, #0a1929 0%, #1e3c72 100%);
+        }
+        
+        .dashboard-header {
+            text-align: center;
+            padding: 2rem;
+            background: rgba(0,0,0,0.3);
+            border-bottom: 3px solid #4caf50;
+        }
+        
+        .dashboard-header h1 {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+        
+        .dashboard-header .event-name {
+            font-size: 1.5rem;
+            color: #4caf50;
+        }
+        
+        .current-dive-display {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 3rem;
+        }
+        
+        .diver-name {
+            font-size: 4rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+        }
+        
+        .dive-info {
+            font-size: 2rem;
+            color: #90caf9;
+            margin-bottom: 2rem;
+        }
+        
+        .dive-details-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+        
+        .dive-detail-item {
+            text-align: center;
+            padding: 1.5rem;
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+        }
+        
+        .dive-detail-label {
+            font-size: 1.2rem;
+            color: #90caf9;
+            margin-bottom: 0.5rem;
+        }
+        
+        .dive-detail-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+        }
+        
+        .scores-display {
+            margin-top: 3rem;
+            text-align: center;
+        }
+        
+        .scores-label {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: #90caf9;
+        }
+        
+        .scores-grid {
+            display: flex;
+            justify-content: center;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .judge-score {
+            padding: 1.5rem 2rem;
+            background: rgba(255,255,255,0.15);
+            border-radius: 8px;
+            min-width: 100px;
+        }
+        
+        .judge-score.pending {
+            background: rgba(255,255,255,0.05);
+            color: #666;
+        }
+        
+        .judge-score.removed {
+            text-decoration: line-through;
+            opacity: 0.5;
+        }
+        
+        .judge-label {
+            font-size: 1rem;
+            color: #90caf9;
+            margin-bottom: 0.5rem;
+        }
+        
+        .judge-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+        }
+        
+        .final-score-display {
+            margin-top: 2rem;
+            padding: 2rem;
+            background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%);
+            border-radius: 12px;
+            animation: scoreReveal 0.5s ease;
+        }
+        
+        @keyframes scoreReveal {
+            from {
+                transform: scale(0.8);
+                opacity: 0;
+            }
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+        
+        .final-score-label {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .final-score-value {
+            font-size: 5rem;
+            font-weight: bold;
+        }
+        
+        .waiting-message {
+            font-size: 2rem;
+            color: #90caf9;
+            text-align: center;
+            padding: 3rem;
+        }
+        
+        .leaderboard {
+            margin-top: 3rem;
+            padding: 2rem;
+            background: rgba(0,0,0,0.3);
+        }
+        
+        .leaderboard h3 {
+            font-size: 2rem;
+            text-align: center;
+            margin-bottom: 1.5rem;
+            color: #4caf50;
+        }
+        
+        .leaderboard-item {
+            display: grid;
+            grid-template-columns: 80px 1fr 120px;
+            padding: 1rem 2rem;
+            margin: 0.5rem 0;
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+            font-size: 1.3rem;
+        }
+        
+        .leaderboard-item.first {
+            background: linear-gradient(135deg, #ffd700 20%, rgba(255,215,0,0.3) 100%);
+            color: #000;
+        }
+        
+        .leaderboard-item.second {
+            background: linear-gradient(135deg, #c0c0c0 20%, rgba(192,192,192,0.3) 100%);
+            color: #000;
+        }
+        
+        .leaderboard-item.third {
+            background: linear-gradient(135deg, #cd7f32 20%, rgba(205,127,50,0.3) 100%);
+            color: #000;
+        }
+        
+        .setup-controls {
+            padding: 2rem;
+            background: white;
+        }
+        
+        .setup-controls label {
+            color: #333;
+        }
+        
+        .setup-controls select {
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Diving Competition Management System</h1>
+        <nav>
+            <a href="/">Competitions</a>
+            <a href="/competitors.html">Competitors</a>
+            <a href="/dive-sheets.html">Dive Sheets</a>
+            <a href="/judges.html">Judge Scoring</a>
+            <a href="/results.html" class="active">Live Results</a>
+        </nav>
+    </header>
+
+    <main>
+        <section id="setup-section" class="setup-controls">
+            <div class="section-header">
+                <h2>Live Results Dashboard</h2>
+            </div>
+
+            <div class="form-group">
+                <label for="competition-select">Select Competition *</label>
+                <select id="competition-select">
+                    <option value="">-- Select a Competition --</option>
+                </select>
+            </div>
+
+            <div class="form-group" id="event-select-group" style="display: none;">
+                <label for="event-select">Select Event *</label>
+                <select id="event-select">
+                    <option value="">-- Select an Event --</option>
+                </select>
+            </div>
+
+            <div id="start-button-group" style="display: none; margin-top: 1rem;">
+                <button id="start-dashboard-btn" class="btn btn-primary">Start Dashboard</button>
+            </div>
+        </section>
+
+        <div id="dashboard-container" class="dashboard-container" style="display: none;">
+            <div class="dashboard-header">
+                <h1 id="competition-name"></h1>
+                <div class="event-name" id="event-name"></div>
+            </div>
+
+            <div id="current-dive-display" class="current-dive-display">
+                <!-- Dynamic content -->
+            </div>
+
+            <div id="leaderboard-container" class="leaderboard" style="display: none;">
+                <!-- Leaderboard content -->
+            </div>
+        </div>
+    </main>
+
+    <script src="/js/results.js"></script>
+</body>
+</html>

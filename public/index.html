@@ -10,52 +10,61 @@
     <header>
         <h1>Diving Competition Management System</h1>
         <nav>
-            <a href="/">Events</a>
+            <a href="/">Competitions</a>
             <a href="/competitors.html">Competitors</a>
             <a href="/dive-sheets.html">Dive Sheets</a>
+            <a href="/judges.html">Judge Scoring</a>
+            <a href="/results.html">Live Results</a>
         </nav>
     </header>
 
     <main>
-        <section id="events-section">
+        <section id="competitions-section">
             <div class="section-header">
-                <h2>Events</h2>
-                <button id="new-event-btn" class="btn btn-primary">Create New Event</button>
+                <h2>Competitions</h2>
+                <button id="new-competition-btn" class="btn btn-primary">Create New Competition</button>
             </div>
 
-            <div id="event-form" class="form-container" style="display: none;">
-                <h3 id="form-title">Create Event</h3>
-                <form id="event-form-element">
-                    <input type="hidden" id="event-id">
+            <div id="competition-form" class="form-container" style="display: none;">
+                <h3 id="form-title">Create Competition</h3>
+                <form id="competition-form-element">
+                    <input type="hidden" id="competition-id">
                     <div class="form-group">
-                        <label for="event-name">Event Name *</label>
-                        <input type="text" id="event-name" required>
+                        <label for="competition-name">Competition Name *</label>
+                        <input type="text" id="competition-name" required>
                     </div>
                     <div class="form-group">
-                        <label for="event-date">Date *</label>
-                        <input type="date" id="event-date" required>
+                        <label for="competition-date">Date *</label>
+                        <input type="date" id="competition-date" required>
                     </div>
                     <div class="form-group">
-                        <label for="event-location">Location *</label>
-                        <input type="text" id="event-location" required>
+                        <label for="competition-location">Location *</label>
+                        <input type="text" id="competition-location" required>
                     </div>
                     <div class="form-group">
-                        <label for="event-description">Description</label>
-                        <textarea id="event-description" rows="3"></textarea>
+                        <label for="competition-description">Description</label>
+                        <textarea id="competition-description" rows="3"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="num-judges">Number of Judges *</label>
+                        <select id="num-judges" required>
+                            <option value="3">3 Judges</option>
+                            <option value="5" selected>5 Judges</option>
+                        </select>
                     </div>
                     <div class="form-actions">
-                        <button type="submit" class="btn btn-primary">Save Event</button>
-                        <button type="button" id="cancel-event-btn" class="btn btn-secondary">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save Competition</button>
+                        <button type="button" id="cancel-competition-btn" class="btn btn-secondary">Cancel</button>
                     </div>
                 </form>
             </div>
 
-            <div id="events-list" class="data-list">
-                <!-- Events will be loaded here dynamically -->
+            <div id="competitions-list" class="data-list">
+                <!-- Competitions will be loaded here dynamically -->
             </div>
         </section>
     </main>
 
-    <script src="/js/events.js"></script>
+    <script src="/js/competitions.js"></script>
 </body>
 </html>
