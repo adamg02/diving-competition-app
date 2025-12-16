@@ -16,35 +16,23 @@
                 <span></span>
             </button>
         </div>
-        <div class="header-controls" id="header-controls">
-            <div class="competition-selector">
-                <label for="global-competition-select">Competition:</label>
-                <select id="global-competition-select">
-                    <option value="">Select a competition...</option>
-                </select>
-            </div>
-            <nav>
-                <a href="/">Competitions</a>
-                <a href="/competitors.html">Competitors</a>
-                <a href="/dive-sheets.html">Dive Sheets</a>
-                <a href="/judges.html">Judge Scoring</a>
-                <a href="/results.html">Live Results</a>
-            </nav>
-        </div>
+        <nav id="header-controls">
+            <a href="/">Competitions</a>
+            <a href="/dive-sheets.html">Dive Sheets</a>
+            <a href="/judges.html">Judge Scoring</a>
+            <a href="/results.html">Live Results</a>
+        </nav>
     </header>
 
     <main>
         <section id="competitors-section">
-            <div class="section-header">
-                <h2>Competitors Management</h2>
-                <p class="help-text" id="competition-status">Please select a competition from the dropdown above.</p>
+            <div class="breadcrumb">
+                <a href="/" id="back-to-competitions">← Back to Competitions</a>
             </div>
-
-            <div class="form-group" id="event-select-group" style="display: none;">
-                <label for="event-select">Select Event *</label>
-                <select id="event-select">
-                    <option value="">-- Select an Event --</option>
-                </select>
+            
+            <div class="section-header">
+                <h2 id="event-title">Competitors Management</h2>
+                <button id="new-competitor-btn" class="btn btn-primary">Add Competitor</button>
             </div>
 
             <div id="competitor-form" class="form-container" style="display: none;">
@@ -70,14 +58,8 @@
                 </form>
             </div>
 
-            <div id="competitors-container" style="display: none;">
-                <div class="section-header">
-                    <h3>Competitors List</h3>
-                    <button id="new-competitor-btn" class="btn btn-primary">Add Competitor</button>
-                </div>
-                <div id="competitors-list" class="data-list">
-                    <!-- Competitors will be loaded here dynamically -->
-                </div>
+            <div id="competitors-list" class="data-list">
+                <!-- Competitors will be loaded here dynamically -->
             </div>
         </section>
     </main>

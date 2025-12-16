@@ -31,8 +31,6 @@ class Database {
       })
       .catch(error => {
         console.error('Database run error:', error.message);
-        console.error('SQL:', sql);
-        console.error('Params:', params);
         if (callback) {
           callback.call({}, error);
         }
@@ -118,10 +116,8 @@ class Database {
         };
       }
     } catch (error) {
-      // If RPC doesn't exist, fall back to manual query building (this is expected)
-      if (!error.message.includes('execute_sql')) {
-        console.error('SQL execution error, falling back to manual query building:', error.message);
-      }
+      // If RPC doesn't exist, we need to create it or handle queries manually
+      console.error('SQL execution error, falling back to manual query building:', error.message);
       return await this._executeManual(sqlTrimmed, params);
     }
   }
@@ -144,105 +140,47 @@ class Database {
   }
 
   async _handleSelect(sql, params) {
-    const sqlLower = sql.toLowerCase();
-    
-    // Check if this is a complex query (has JOIN, GROUP BY, etc.)
-    if (sqlLower.includes(' join ') || sqlLower.includes('group by') || sqlLower.includes('count(')) {
-      // For complex queries, we need to use a different approach
-      // Build a manual query using Supabase's query builder where possible
-      return await this._handleComplexSelect(sql, params);
-    }
-    
     // Extract table name
     const tableMatch = sql.match(/from\s+([a-z_]+)/i);
-    if (!tableMatch) throw new Error('Cannot parse table name from: ' + sql);
+    if (!tableMatch) throw new Error('Cannot parse table name');
 
     const tableName = tableMatch[1];
     let query = supabase.from(tableName).select('*');
 
-    // Parse WHERE clause more generically
-    const whereMatch = sql.match(/WHERE\s+(.+?)(?:\s+GROUP\s+BY|\s+ORDER\s+BY|\s*$)/i);
-    if (whereMatch) {
-      const whereClause = whereMatch[1].trim();
-      let paramIndex = 0;
-
-      // Handle compound WHERE with AND
-      if (whereClause.includes(' AND ')) {
-        const conditions = whereClause.split(/\s+AND\s+/i);
-        conditions.forEach(condition => {
-          const match = condition.match(/([a-z_]+)\s*=\s*\?/i);
-          if (match && paramIndex < params.length) {
-            query = query.eq(match[1], params[paramIndex++]);
-          }
-        });
-      } else {
-        // Single condition
-        const match = whereClause.match(/([a-z_]+)\s*=\s*\?/i);
-        if (match && paramIndex < params.length) {
-          query = query.eq(match[1], params[paramIndex]);
-        }
-      }
+    // Handle simple WHERE id = ? queries
+    if (sql.includes('WHERE id = ?') || sql.includes('WHERE id=?')) {
+      query = query.eq('id', params[0]);
+    } else if (sql.includes('WHERE event_id = ?') || sql.includes('WHERE event_id=?')) {
+      query = query.eq('event_id', params[0]);
+    } else if (sql.includes('WHERE competitor_id = ?') || sql.includes('WHERE competitor_id=?')) {
+      query = query.eq('competitor_id', params[0]);
+    } else if (sql.includes('WHERE competition_id = ?') || sql.includes('WHERE competition_id=?')) {
+      query = query.eq('competition_id', params[0]);
     }
 
     // Handle ORDER BY
     if (sql.includes('ORDER BY')) {
-      const orderMatch = sql.match(/ORDER BY\s+([a-z_.]+)(\s+(ASC|DESC))?/i);
+      const orderMatch = sql.match(/ORDER BY\s+([a-z_]+)(\s+(ASC|DESC))?/i);
       if (orderMatch) {
-        const column = orderMatch[1].replace(/.*\./, ''); // Remove table prefix if present
+        const column = orderMatch[1];
         const direction = orderMatch[3] && orderMatch[3].toLowerCase() === 'desc';
         query = query.order(column, { ascending: !direction });
       }
     }
 
     const { data, error } = await query;
-    if (error) {
-      console.error('Supabase SELECT error:', error);
-      throw error;
-    }
+    if (error) throw error;
 
     return { rows: data || [] };
   }
 
-  async _handleComplexSelect(sql, params) {
-    // For queries with JOINs, we'll manually execute using Supabase's advanced features
-    // Extract the main table and try to use select with join notation
-    
-    // Special case: events with competitor count
-    if (sql.includes('FROM events e') && sql.includes('LEFT JOIN competitors c')) {
-      const competitionIdMatch = sql.match(/WHERE e\.competition_id = \?/i);
-      if (competitionIdMatch && params.length > 0) {
-        // Use Supabase to get events with competitor count
-        const { data: events, error } = await supabase
-          .from('events')
-          .select('*, competitors(id)')
-          .eq('competition_id', params[0])
-          .order('name');
-        
-        if (error) throw error;
-        
-        // Transform data to match expected format
-        const rows = events.map(event => ({
-          ...event,
-          competitor_count: event.competitors ? event.competitors.length : 0,
-          competitors: undefined // Remove the nested array
-        }));
-        
-        return { rows };
-      }
-    }
-    
-    // Fallback: log warning and return empty
-    console.warn('Complex query not fully supported, returning empty result:', sql);
-    return { rows: [] };
-  }
-
   async _handleInsert(sql, params) {
     const tableMatch = sql.match(/into\s+([a-z_]+)/i);
-    if (!tableMatch) throw new Error('Cannot parse table name from: ' + sql);
+    if (!tableMatch) throw new Error('Cannot parse table name');
 
     const tableName = tableMatch[1];
     const columnsMatch = sql.match(/\(([^)]+)\)/);
-    if (!columnsMatch) throw new Error('Cannot parse columns from: ' + sql);
+    if (!columnsMatch) throw new Error('Cannot parse columns');
 
     const columns = columnsMatch[1].split(',').map(c => c.trim());
     const insertData = {};
@@ -253,19 +191,12 @@ class Database {
       }
     });
 
-    console.log('INSERT into', tableName, 'data:', insertData);
-
     const { data, error } = await supabase
       .from(tableName)
       .insert(insertData)
       .select();
 
-    if (error) {
-      console.error('Supabase INSERT error:', error);
-      throw error;
-    }
-
-    console.log('INSERT successful, returned data:', data);
+    if (error) throw error;
 
     return {
       lastID: data && data.length > 0 ? data[0].id : null,
@@ -276,46 +207,27 @@ class Database {
 
   async _handleUpdate(sql, params) {
     const tableMatch = sql.match(/update\s+([a-z_]+)/i);
-    if (!tableMatch) throw new Error('Cannot parse table name from: ' + sql);
+    if (!tableMatch) throw new Error('Cannot parse table name');
 
     const tableName = tableMatch[1];
     const setMatch = sql.match(/SET\s+(.+?)\s+WHERE/i);
-    if (!setMatch) throw new Error('Cannot parse SET clause from: ' + sql);
+    if (!setMatch) throw new Error('Cannot parse SET clause');
 
     const setParts = setMatch[1].split(',').map(s => s.trim());
     const updateData = {};
     let paramIndex = 0;
 
     setParts.forEach(part => {
-      const [column, value] = part.split('=').map(p => p.trim());
-      
-      // Handle CURRENT_TIMESTAMP or NOW()
-      if (value.toUpperCase() === 'CURRENT_TIMESTAMP' || value.toUpperCase() === 'NOW()') {
-        updateData[column] = new Date().toISOString();
-      } else if (value === '?') {
-        // Value comes from params
-        if (params[paramIndex] !== undefined) {
-          updateData[column] = params[paramIndex++];
-        }
-      } else {
-        // Literal value
-        updateData[column] = value.replace(/['"]/g, '');
+      const [column] = part.split('=').map(p => p.trim());
+      if (params[paramIndex] !== undefined) {
+        updateData[column] = params[paramIndex++];
       }
     });
 
     let query = supabase.from(tableName).update(updateData);
 
-    // Parse WHERE clause
     if (sql.includes('WHERE id = ?') && params[paramIndex] !== undefined) {
       query = query.eq('id', params[paramIndex]);
-    } else if (sql.includes('WHERE event_id = ?') && params[paramIndex] !== undefined) {
-      query = query.eq('event_id', params[paramIndex]);
-    } else {
-      // Try to extract WHERE clause more generically
-      const whereMatch = sql.match(/WHERE\s+([a-z_]+)\s*=\s*\?/i);
-      if (whereMatch && params[paramIndex] !== undefined) {
-        query = query.eq(whereMatch[1], params[paramIndex]);
-      }
     }
 
     const { data, error } = await query.select();

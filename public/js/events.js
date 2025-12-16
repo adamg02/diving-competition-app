@@ -70,8 +70,10 @@ function displayEvents(events) {
             <h3>${event.name}</h3>
             ${event.description ? `<p>${event.description}</p>` : ''}
             <p><strong>Number of Dives:</strong> ${event.num_dives || 6}</p>
+            <p><strong>Competitors:</strong> ${event.competitor_count || 0}</p>
             ${event.is_running ? '<span class="status-badge status-submitted">Running</span>' : ''}
             <div class="card-actions">
+                <button class="btn btn-secondary" onclick="manageCompetitors(${event.id})">Manage Competitors</button>
                 <button class="btn btn-primary" onclick="editEvent(${event.id})">Edit</button>
                 <button class="btn btn-danger" onclick="deleteEvent(${event.id})">Delete</button>
                 <button class="btn btn-success" onclick="runEvent(${event.id}, '${event.name.replace(/'/g, "\\'")}')">
@@ -80,6 +82,10 @@ function displayEvents(events) {
             </div>
         </div>
     `).join('');
+}
+
+function manageCompetitors(eventId) {
+    window.location.href = `/competitors.html?eventId=${eventId}`;
 }
 
 function runEvent(eventId, eventName) {

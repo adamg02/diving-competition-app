@@ -25,14 +25,21 @@ passport.use(new GoogleStrategy({
   },
   async (accessToken, refreshToken, profile, done) => {
     try {
+      console.log('Google OAuth callback - Profile ID:', profile.id);
       // Check if user exists
       db.get(
         'SELECT * FROM users WHERE provider = ? AND provider_id = ?',
         ['google', profile.id],
         (err, user) => {
-          if (err) return done(err);
+          if (err) {
+            console.error('Error checking for existing user:', err);
+            return done(err);
+          }
+          
+          console.log('User lookup result:', user ? 'Found existing user' : 'User not found');
           
           if (user) {
+            console.log('Existing user:', user);
             // Update last login
             db.run(
               'UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?',
@@ -47,12 +54,25 @@ passport.use(new GoogleStrategy({
             const email = profile.emails && profile.emails[0] ? profile.emails[0].value : null;
             const photo = profile.photos && profile.photos[0] ? profile.photos[0].value : null;
             
+            console.log('Creating new user with data:', {
+              provider: 'google',
+              provider_id: profile.id,
+              email,
+              display_name: profile.displayName,
+              role: 'viewer'
+            });
+            
             db.run(
               `INSERT INTO users (provider, provider_id, email, display_name, first_name, last_name, profile_photo, role)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
               ['google', profile.id, email, profile.displayName, profile.name?.givenName, profile.name?.familyName, photo, 'viewer'],
               function(err) {
-                if (err) return done(err);
+                if (err) {
+                  console.error('Error creating user:', err);
+                  return done(err);
+                }
+                
+                console.log('User created with lastID:', this.lastID);
                 
                 db.get('SELECT * FROM users WHERE id = ?', [this.lastID], (err, newUser) => {
                   return done(err, newUser);

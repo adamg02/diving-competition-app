@@ -6,7 +6,6 @@ const cors = require('cors');
 const path = require('path');
 const rateLimit = require('express-rate-limit');
 const session = require('express-session');
-const SQLiteStore = require('connect-sqlite3')(session);
 const passport = require('./auth');
 const config = require('./config');
 const db = require('./database');
@@ -22,9 +21,12 @@ const apiLimiter = rateLimit({
 });
 
 // Session configuration
+// Note: Using memory store for sessions (suitable for single-server deployment)
+// For production with multiple servers, consider @supabase/supabase-js based session store
 app.use(session({
   ...config.session,
-  store: new SQLiteStore({ db: 'sessions.db', dir: './' })
+  // Memory store is built-in (no external dependency needed)
+  // Sessions will be lost on server restart
 }));
 
 // Passport initialization
@@ -90,6 +92,9 @@ app.get('/auth/logout', (req, res) => {
 
 // Get current user
 app.get('/api/auth/user', (req, res) => {
+  console.log('=== /api/auth/user called');
+  console.log('Is authenticated?', req.isAuthenticated());
+  console.log('User object:', req.user);
   if (req.isAuthenticated()) {
     res.json({ user: req.user });
   } else {
@@ -228,7 +233,19 @@ app.delete('/api/competitions/:id', ensureAdmin, (req, res) => {
 // Get all events for a competition
 app.get('/api/competitions/:competitionId/events', (req, res) => {
   const { competitionId } = req.params;
-  db.all('SELECT * FROM events WHERE competition_id = ? ORDER BY name', [competitionId], (err, rows) => {
+  
+  const sql = `
+    SELECT 
+      e.*,
+      COUNT(c.id) as competitor_count
+    FROM events e
+    LEFT JOIN competitors c ON e.id = c.event_id
+    WHERE e.competition_id = ?
+    GROUP BY e.id
+    ORDER BY e.name
+  `;
+  
+  db.all(sql, [competitionId], (err, rows) => {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
@@ -1249,6 +1266,17 @@ app.get('/api/events/:eventId/leaderboard', (req, res) => {
 });
 
 // ==================== USER MANAGEMENT ENDPOINTS ====================
+
+// Debug endpoint to check all users (TEMPORARY - remove in production)
+app.get('/api/debug/users', (req, res) => {
+  db.all('SELECT id, provider, provider_id, email, display_name, role, created_at FROM users ORDER BY created_at DESC', [], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    console.log('=== All users in database:', rows);
+    res.json({ users: rows, count: rows.length });
+  });
+});
 
 // Get all users (admin only)
 app.get('/api/users', ensureAdmin, (req, res) => {

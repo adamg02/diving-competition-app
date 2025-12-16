@@ -2,6 +2,12 @@
 
 A comprehensive web application for managing diving competitions, competitors, and dive sheets with FINA dive code support.
 
+> **🆕 Database Migration Notice**: This app has been migrated from SQLite to Supabase (PostgreSQL). 
+> 
+> **📖 New to this project?** See [SETUP.md](./SETUP.md) for quick start instructions.
+> 
+> **🔄 Existing user?** See [MIGRATION-COMPLETE.md](./MIGRATION-COMPLETE.md) for migration details.
+
 ## Features
 
 ### Event Management
@@ -33,11 +39,17 @@ A comprehensive web application for managing diving competitions, competitors, a
 ## Technology Stack
 
 - **Backend**: Node.js with Express.js
-- **Database**: SQLite3
+- **Database**: Supabase (PostgreSQL) - migrated from SQLite3
 - **Frontend**: Vanilla JavaScript, HTML5, CSS3
 - **API**: RESTful API architecture
 
 ## Installation
+
+### Prerequisites
+- Node.js (v14 or higher)
+- A Supabase account (free tier available at [supabase.com](https://supabase.com))
+
+### Setup
 
 1. Clone the repository:
 ```bash
@@ -48,6 +60,29 @@ cd diving-competition-app
 2. Install dependencies:
 ```bash
 npm install
+```
+
+3. **Set up Supabase database:**
+   - Create a new project at [supabase.com](https://supabase.com)
+   - In the SQL Editor, run the `supabase-schema.sql` file to create all tables
+   - Get your project URL and anon key from Settings > API
+
+4. **Configure environment variables:**
+   - Copy `.env.example` to `.env`
+   - Add your Supabase credentials:
+   ```env
+   SUPABASE_URL=your_supabase_project_url
+   SUPABASE_ANON_KEY=your_supabase_anon_key
+   ```
+
+5. **Start the application:**
+```bash
+npm start
+```
+
+6. Open your browser and navigate to `http://localhost:3000`
+
+> **📖 For detailed migration instructions and troubleshooting, see [SUPABASE-MIGRATION.md](./SUPABASE-MIGRATION.md)**
 ```
 
 3. Start the server:

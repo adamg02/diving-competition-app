@@ -1,94 +1,52 @@
 const API_URL = window.location.origin;
 
-let currentCompetitionId = null;
 let currentEventId = null;
+let eventName = '';
 let editingCompetitorId = null;
 
 // DOM Elements
-const eventSelectGroup = document.getElementById('event-select-group');
-const eventSelect = document.getElementById('event-select');
 const competitorForm = document.getElementById('competitor-form');
 const competitorFormElement = document.getElementById('competitor-form-element');
 const newCompetitorBtn = document.getElementById('new-competitor-btn');
 const cancelCompetitorBtn = document.getElementById('cancel-competitor-btn');
-const competitorsContainer = document.getElementById('competitors-container');
 const competitorsList = document.getElementById('competitors-list');
 const formTitle = document.getElementById('form-title');
-const competitionStatus = document.getElementById('competition-status');
+const eventTitle = document.getElementById('event-title');
+const backLink = document.getElementById('back-to-competitions');
 
 // Event Listeners
-eventSelect.addEventListener('change', handleEventChange);
 newCompetitorBtn.addEventListener('click', showCompetitorForm);
 cancelCompetitorBtn.addEventListener('click', hideCompetitorForm);
 competitorFormElement.addEventListener('submit', handleCompetitorSubmit);
 
-// Listen for global competition changes
-window.addEventListener('competitionChanged', (event) => {
-    const { id, name } = event.detail;
-    handleCompetitionChange(id, name);
-});
-
-// Initialize - check if competition is already selected
-document.addEventListener('DOMContentLoaded', () => {
-    // Give competition-selector.js time to initialize
-    setTimeout(() => {
-        const comp = getGlobalCompetition();
-        if (comp.id) {
-            handleCompetitionChange(comp.id, comp.name);
-        }
-    }, 100);
-});
-
-async function handleCompetitionChange(competitionId, competitionName) {
-    if (competitionId) {
-        currentCompetitionId = competitionId;
-        competitionStatus.textContent = `Viewing: ${competitionName}`;
-        eventSelectGroup.style.display = 'block';
-        competitorsContainer.style.display = 'none';
-        competitorForm.style.display = 'none';
-        await loadEvents(competitionId);
-    } else {
-        currentCompetitionId = null;
-        competitionStatus.textContent = 'Please select a competition from the dropdown above.';
-        eventSelectGroup.style.display = 'none';
-        competitorsContainer.style.display = 'none';
-        competitorForm.style.display = 'none';
+// Initialize - get eventId from URL
+document.addEventListener('DOMContentLoaded', async () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const eventId = urlParams.get('eventId');
+    
+    if (!eventId) {
+        competitorsList.innerHTML = '<div class="empty-state"><p>No event selected. Please select an event from the events page.</p></div>';
+        newCompetitorBtn.style.display = 'none';
+        return;
     }
-}
-
-async function loadEvents(competitionId) {
+    
+    currentEventId = eventId;
+    
+    // Load event details to get name and competition
     try {
-        const response = await fetch(`${API_URL}/api/competitions/${competitionId}/events`);
+        const response = await fetch(`${API_URL}/api/events/${eventId}`);
         const data = await response.json();
-        
-        if (data.events && data.events.length > 0) {
-            eventSelect.innerHTML = '<option value="">-- Select an Event --</option>' +
-                data.events.map(event => 
-                    `<option value="${event.id}">${event.name}</option>`
-                ).join('');
-        } else {
-            eventSelect.innerHTML = '<option value="">No events available</option>';
+        if (data.event) {
+            eventName = data.event.name;
+            eventTitle.textContent = `Competitors - ${eventName}`;
+            backLink.href = `/events.html?competitionId=${data.event.competition_id}`;
         }
     } catch (error) {
-        console.error('Error loading events:', error);
-        showMessage('Error loading events', 'error');
+        console.error('Error loading event details:', error);
     }
-}
-
-function handleEventChange() {
-    const eventId = eventSelect.value;
     
-    if (eventId) {
-        currentEventId = eventId;
-        competitorsContainer.style.display = 'block';
-        competitorForm.style.display = 'none';
-        loadCompetitors(eventId);
-    } else {
-        currentEventId = null;
-        competitorsContainer.style.display = 'none';
-        competitorForm.style.display = 'none';
-    }
-}
+    loadCompetitors(eventId);
+});
 
 async function loadCompetitors(eventId) {
     try {
